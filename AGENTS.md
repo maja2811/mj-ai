@@ -98,6 +98,9 @@ If a task spans domains, read all relevant skills.
 - If neither exists, run `sync_opencode_skills()` after the project environment is
   installed and `dlh_dmt_helper` imports successfully. Do not invent helper APIs while
   skill sync is unavailable.
+- Re-run `sync_opencode_skills()` after any change to the project's `dlh-dmt-helper`
+  pin. Synced skills snapshot the installed version and go stale silently otherwise.
+  The sync is idempotent, so re-running when unsure is free.
 - Databricks skills (`databricks-core`, etc.) are managed by the Databricks CLI:
   `databricks aitools list | install | update`. Do not hand-copy them.
 
