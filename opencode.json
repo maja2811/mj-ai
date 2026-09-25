@@ -13,7 +13,18 @@
     },
     "scout": {
       "model": "github-copilot/gpt-5.6-luna"
+    },
+    "jira": {
+      "description": "Jira and Confluence work via the Atlassian MCP: searching, reading, creating, updating, transitioning and commenting on issues, and reading or writing Confluence pages. This is the only agent with Atlassian tools enabled.",
+      "mode": "subagent",
+      "model": "github-copilot/gpt-5.6-terra",
+      "tools": {
+        "atlassian_*": true
+      }
     }
+  },
+  "tools": {
+    "atlassian_*": false
   },
   "provider": {
     "azure-cognitive-services": {

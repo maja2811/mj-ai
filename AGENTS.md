@@ -89,6 +89,13 @@ not raw `contents` JSON unless metadata is explicitly needed.
 
 If a task spans domains, read all relevant skills.
 
+### Jira and Confluence
+
+Atlassian MCP tools are disabled globally to keep them out of context, and enabled only
+on the `jira` subagent. Route Jira/Confluence work through `/jira <request>` or
+`@jira`, which loads the `jira-assistant` skill with the MCP available. Do not attempt
+Atlassian work from `build` or `plan` — the tools are not there.
+
 ### Skill discovery and sync
 
 - Prefer the project's `.opencode/skills/` copies when present — they are synced from the
