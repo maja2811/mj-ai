@@ -164,6 +164,8 @@ a replacement for understanding, planning, or implementation. Always ask before 
 - Use the `improve` skill for read-only repository audits, prioritized improvement
   findings, roadmap work, or self-contained implementation plans. It may write only under
   `plans/` or `advisor-plans/`; it does not implement source changes.
+- Treat `plans/` and `advisor-plans/` as local advisory artifacts. Do not stage, commit,
+  push, or include them in implementation PRs unless the user explicitly requests it.
 - Use the normal workflow for direct implementation requests. Do not invoke `improve` as
   a substitute for implementation unless the user explicitly asks for a plan or audit.
 - When delegating a plan, treat the executor's diff as untrusted until scope, tests, and
