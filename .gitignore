@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+
+# Runtime state / logs
+*.log
+.gsd-staging/
+skills/review-pr/.review-poll-state.json
+
+# Browser auth state (genie)
+skills/genie/playwright/.auth/
+*.png

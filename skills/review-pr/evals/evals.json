@@ -1,0 +1,202 @@
+{
+  "skill_name": "review-pr",
+  "evals": [
+    {
+      "id": "eval-001",
+      "prompt": "Review https://github.com/DanskeStatsbaner/bi-dlh-datamart-fraud/pull/64 and write the final markdown review in the current directory.",
+      "expected_output": "The skill should use the OpenCode-native workflow: clone PR artifacts, load the extracted reviewer prompt, inspect the branch with native tools, and write one coherent final markdown review without starting the old backend.",
+      "files": [],
+      "expectations": [
+        "The workflow does not run the FastAPI reviewer backend, /api/review/start, or scripts/run_review.py.",
+        "The run collects PR metadata, discussion, changed-files JSON, filtered diff, and a local PR-head clone with scripts/clone_pr_head.py or equivalent GitHub CLI evidence.",
+        "The workflow fetches the latest official checklist from DanskeStatsbaner/bi-dlh-documentation before reviewing and uses it as mandatory review input.",
+        "The run loads and follows references/opencode-reviewer-prompt.md as the reviewer contract.",
+        "The final markdown uses only these severities if findings exist: CRITICAL, MAJOR, MINOR, SUGGESTION.",
+        "The final markdown does not contain alternative severity labels such as HIGH, MEDIUM, LOW, or INFO.",
+        "The LLM-produced review body does not include the AI-generated review notice or Used model line.",
+        "The final markdown is rendered from references/final-review-template.md and includes the standard AI-generated review notice preamble.",
+        "The final markdown contains exactly one Used model line set to GPT-5.5.",
+        "The final markdown has the extracted prompt structure: Summary, Findings, Example Solutions, Additional Recommendations, Overall Recommendation.",
+        "The workflow explicitly considers PR description and discussion context during the review.",
+        "The final markdown does not mention helper scripts, temp workspaces, OpenCode tool names, backend migration, or internal validation steps."
+      ]
+    },
+    {
+      "id": "eval-002",
+      "prompt": "Run a review for https://github.com/DanskeStatsbaner/bi-dlh-datamart-fraud/pull/64, audit CI-related findings carefully, and save the corrected review as markdown in the current directory.",
+      "expected_output": "The skill should prefer exact CI evidence over generic status observations and use native OpenCode/GitHub/Azure DevOps inspection instead of relying on backend artifacts.",
+      "files": [],
+      "expectations": [
+        "The workflow starts CI inspection from the PR head SHA and GitHub checks or statuses.",
+        "When several same-repo Azure DevOps pipelines exist, the workflow maps PR-head GitHub status/check details URLs or external_id values to the exact build and pipeline IDs before pulling logs.",
+        "The workflow excludes similarly named cleanup, permissions, scheduled, or unrelated Azure DevOps pipelines unless they are attached to the PR head, enforce a required PR policy, or were explicitly requested.",
+        "When exact Azure DevOps evidence is needed, the workflow can use scripts/collect_azure_devops_evidence.py or equivalent commands to save the PR-head status rollup, build metadata, timelines, selected logs, and azure-devops-manifest.json under the review workspace.",
+        "If Azure DevOps logs are needed, the workflow uses the relevant Azure DevOps pipeline/build evidence or the dlh-azure-devops-pipelines skill rather than guessing from a red or green status.",
+        "The workflow inspects the Azure DevOps build timeline and pulls all failed, succeededWithIssues, or code-produced validation/build/deploy logs that are relevant to the PR review, not only the first failed log.",
+        "The workflow skips checkout, setup, secret-fetching, post-job, and finalization logs unless those tasks fail or explain a code-produced failure.",
+        "Pulled Azure DevOps logs are saved under the review workspace with build ID, log ID, and task name in the filename.",
+        "The final review includes CI details only when they are evidenced by exact CI logs, GitHub check metadata, cloned-code verification, or a clearly stated evidence gap.",
+        "The final review does not claim exact CI failure text unless that text was actually retrieved.",
+        "The final review preserves a coherent review structure rather than appending a separate correction log.",
+        "If exact CI logs are unavailable, the workflow narrows CI-backed claims instead of inventing details.",
+        "If CI fails for repo-wide or pre-existing issues outside the touched files, the final review frames it as a validation gate or waiver/tracking issue rather than a functional defect in the PR diff.",
+        "For an already merged or closed PR with a remaining required CI failure, the recommendation suggests a follow-up fix, documented waiver, or linked tracking item rather than only requesting changes."
+      ]
+    },
+    {
+      "id": "eval-003",
+      "prompt": "Review https://github.com/DanskeStatsbaner/bi-dlh-datamart-fraud/pull/64 with the review-pr skill. Validate findings, actively look for missed material issues in the diff, nearby code, discussion, and CI evidence, and save the final markdown file in the current directory.",
+      "expected_output": "The skill should perform a complete OpenCode-native review rather than merely summarizing the PR. It should maintain a finding ledger, reject unsupported candidates, and add concrete missed findings when evidenced.",
+      "files": [],
+      "expectations": [
+        "The workflow includes an explicit missed-issues sweep across changed hunks, nearby code, PR discussion, CI evidence, tests, config, and project conventions.",
+        "Any newly added finding is concrete and evidenced by the diff, cloned code, CI artifacts, runtime evidence, docs, or a combination of them.",
+        "Any newly added finding uses one of the allowed severity labels: CRITICAL, MAJOR, MINOR, SUGGESTION.",
+        "If a version recommendation is made for a dependency, it is grounded in package-repo version evidence rather than guesswork.",
+        "When a runtime or correctness claim depends on dependency behavior, conclusions are checked against the package source repo rather than guessed from local code.",
+        "When Databricks runtime behavior materially affects a finding and safe execution is feasible, the workflow prefers Databricks-backed validation over local Spark inference.",
+        "The final markdown and final assistant summary agree on whether new findings were added."
+      ]
+    },
+    {
+      "id": "eval-004",
+      "prompt": "Review https://github.com/DanskeStatsbaner/bi-dlh-datamart-fraud/pull/64, save the final markdown review in the current directory, and if it looks good post it on GitHub.",
+      "expected_output": "The skill should finish the final markdown first, then proactively offer GitHub posting in normal assistant text. It should never post without explicit confirmation in the current run.",
+      "files": [],
+      "expectations": [
+        "After writing the final markdown, the workflow reports the saved file path and proactively offers GitHub posting in normal assistant text even if the user did not separately ask to post.",
+        "The workflow does not post automatically; it requires an explicit confirmation answer in the current run.",
+        "The workflow does not leave the run incomplete just because the user does not answer or dismisses an optional posting choice.",
+        "By default, posting is a formal PR review rather than a plain PR comment.",
+        "If the final review recommends REQUEST_CHANGES, the default posting action is a request-changes review.",
+        "If the final review recommends APPROVE, the default posting action is an approval review unless the user explicitly asks for another mode.",
+        "A plain PR comment is only used when the user explicitly asks for a comment or the recommendation is neither approval nor request changes.",
+        "If posting occurs, the posted body includes the standard AI-generated review notice and the final markdown review content."
+      ]
+    },
+    {
+      "id": "eval-005",
+      "prompt": "Review https://github.com/DanskeStatsbaner/bi-dlh-src-commercial-rosa/pull/278 and write the final markdown review in the current directory.",
+      "expected_output": "The skill should use the extracted reviewer prompt and DLH platform source-of-truth repos before treating Databricks job notebook paths under /Workspace/Users/... or /Repos/... as blocking problems.",
+      "files": [],
+      "expectations": [
+        "When a finding depends on a Databricks job notebook_path under /Workspace/Users/... or /Repos/..., the workflow inspects bi-dlh-dmt-ci-cd rather than assuming the checked-in YAML is the final runtime path.",
+        "The workflow checks shared deployer path-normalization behavior before keeping a notebook-path finding.",
+        "If the checked-in path matches a supported repo-local pattern that CI/CD rewrites to /Deployment/<repo>/<branch>/..., the final review rejects findings that claim the job depends on one developer's personal workspace solely for that reason.",
+        "The final markdown does not require converting a supported /Workspace/Users/... repo-local notebook path to /Workspace/Deployment/... just for stylistic consistency when CI/CD already normalizes it.",
+        "A notebook-path finding is only kept if concrete evidence shows the path falls outside supported deployer patterns, points outside the repo's adb tree, uses the wrong repo name, or bypasses managed CI/CD deployment.",
+        "The final markdown and recommendation are updated consistently if a notebook-path concern is rejected after checking shared CI/CD behavior."
+      ]
+    },
+    {
+      "id": "eval-006",
+      "prompt": "Do a follow-up review for https://github.com/DanskeStatsbaner/bi-dlh-datamart-fraud/pull/64 and save the markdown in the current directory. Check whether the previous AI review findings were addressed and whether any new issues were introduced.",
+      "expected_output": "The skill should detect or ask for the previous AI review, compare it to the current PR head, and produce the follow-up review structure rather than an initial findings table.",
+      "files": [],
+      "expectations": [
+        "The workflow inspects issue comments, inline review comments, and submitted reviews to identify the latest previous AI review unless the user provided one explicitly.",
+        "The workflow treats bot/AI login patterns and previous review body markers as previous-AI-review signals.",
+        "If the previous review includes a commit SHA, the workflow compares that SHA to the current PR head when assessing resolution status.",
+        "If no previous review can be identified for an explicitly requested follow-up, the workflow asks which previous review/comment to use or gets confirmation before proceeding best-effort.",
+        "The final markdown uses follow-up headings: Executive Summary, Previous Findings Status, New Issues, Author Communication, Recommendation.",
+        "The Previous Findings Status table preserves the previous findings order and uses only the defined status values: ✅, ⚠️, ❌, 🔄.",
+        "New problems introduced since the previous review appear under New Issues rather than being mixed into the previous-finding status table.",
+        "The recommendation reflects both previous-finding resolution and any new issues."
+      ]
+    },
+    {
+      "id": "eval-007",
+      "prompt": "Review a closed GitHub PR whose source branch may have been deleted, save the markdown review in the current directory, and offer to post it when finished.",
+      "expected_output": "The skill should collect deterministic PR artifacts from GitHub's pull ref, avoid hand-patching manifests, complete even if posting is dismissed, and leave a coherent final markdown file on disk.",
+      "files": [],
+      "expectations": [
+        "The artifact helper clones the exact PR head commit from refs/pull/<number>/head or an equivalent stable PR ref rather than relying only on the source branch name.",
+        "The helper verifies that cloned_head_sha equals head_sha before review starts.",
+        "The workflow does not manually create or patch pr-manifest.json after a helper failure; it reruns a deterministic helper or stops with a clear error.",
+        "The final review is based on the verified head SHA and does not mix artifacts from a failed prior collection attempt.",
+        "If an optional GitHub posting choice is dismissed or receives no explicit confirmation, the workflow treats that as do not post, reports the saved markdown path, and marks the work complete."
+      ]
+    },
+    {
+      "id": "eval-008",
+      "prompt": "Review a GitHub PR that changes uv.lock plus source files and save the markdown review in the current directory.",
+      "expected_output": "The skill should restore the old backend default by excluding uv.lock unless the user explicitly asks to include lockfiles.",
+      "files": [],
+      "expectations": [
+        "The artifact collection command passes uv.lock as a default excluded pattern unless the user explicitly asks to include it.",
+        "The workflow records excluded_patterns in pr-manifest.json.",
+        "The final review does not create findings from uv.lock-only churn unless the user explicitly asked to review lockfiles.",
+        "User-provided exclusions are added to the default uv.lock exclusion rather than replacing it, unless the user asks to include uv.lock."
+      ]
+    },
+    {
+      "id": "eval-009",
+      "prompt": "Do a follow-up review for a GitHub PR with previous AI review comments and save the markdown review in the current directory.",
+      "expected_output": "The skill should use deterministic follow-up detection artifacts rather than ad hoc manual scanning only.",
+      "files": [],
+      "expectations": [
+        "The workflow runs scripts/detect_followup_review.py or equivalent deterministic logic after PR artifact collection unless forced initial mode is requested.",
+        "The workflow reads followup-context.json to decide INITIAL versus FOLLOWUP mode.",
+        "When a previous AI review is found, previous-review.md is used as the previous review body.",
+        "Author responses after the previous review are collected into author-responses.md or equivalent structured context.",
+        "If a previous review commit SHA is available, diff-since-last.diff is used to assess changes since that review."
+      ]
+    },
+    {
+      "id": "eval-010",
+      "prompt": "Review https://github.com/DanskeStatsbaner/bi-dlh-src-commercial-rksa/tree/main and save the markdown review in the current directory.",
+      "expected_output": "The skill should support non-PR branch and repository review targets using OpenCode-native artifacts.",
+      "files": [],
+      "expectations": [
+        "The workflow accepts GitHub /tree/<branch> URLs and repo root URLs as review targets.",
+        "For a non-default branch URL, the workflow compares the branch against the repository default branch unless the user gives another base.",
+        "For a default branch or repo root review, the workflow enters full-file mode and uses changed_files_path to scope repository files.",
+        "The workflow writes a manifest with target_kind, diff_type, head_sha, base_ref, cloned_head_sha, clone_path, diff_path, changed_files_path, and suggested_filename.",
+        "The workflow does not offer PR posting for branch/repo reviews unless the user gives a specific PR or destination."
+      ]
+    },
+    {
+      "id": "eval-011",
+      "prompt": "Review a GitHub PR, save the markdown, and post it if I confirm.",
+      "expected_output": "The skill should add AI disclosure and model metadata through the deterministic template while still requiring explicit posting confirmation.",
+      "files": [],
+      "expectations": [
+        "The workflow writes a body-only review draft before rendering the final markdown.",
+        "The body-only draft does not contain **AI-Generated Review Notice:** or **Used model:**.",
+        "The saved markdown starts with **AI-Generated Review Notice:** from the deterministic template.",
+        "The notice states that the review was generated by an AI assistant and may contain errors or oversights.",
+        "The notice includes the latest official checklist link, the minor-finding deferral note, and a Used model line set to GPT-5.5.",
+        "The posted GitHub body includes the same disclosure even if a separate posting-body copy is needed.",
+        "The workflow still never posts without explicit confirmation in the current run."
+      ]
+    },
+    {
+      "id": "eval-012",
+      "prompt": "Review a GitHub PR and save the markdown review. Use the checklist.",
+      "expected_output": "The skill should always fetch and use the latest checklist from bi-dlh-documentation, then render final markdown through the deterministic template.",
+      "files": [],
+      "expectations": [
+        "The workflow runs scripts/fetch_latest_checklist.py or equivalent GitHub CLI logic to fetch DanskeStatsbaner/bi-dlh-documentation/checklist.md from the repository default branch.",
+        "The workflow saves checklist.md and checklist-manifest.json under the review workspace.",
+        "If the latest official checklist cannot be fetched, the workflow stops instead of producing a checklist-free review.",
+        "The official checklist is mandatory source-of-truth context; any user-provided checklist is supplemental only.",
+        "The workflow writes review-body.md without disclaimer or model metadata, then runs scripts/render_review_markdown.py or equivalent deterministic rendering.",
+        "The final markdown includes the checklist URL from checklist-manifest.json and **Used model:** GPT-5.5."
+      ]
+    },
+    {
+      "id": "eval-013",
+      "prompt": "Verify the automatic PR watcher setup without starting it. Inspect the bundled review-pr skill file scripts/pr-watcher.sh and report: the default model and PR_WATCHER_MODEL override, the default working directory and PR_WATCHER_REVIEW_CWD override, the default state file and PR_WATCHER_STATE_FILE override, the exact cmux/opencode /review-pr launch template, whether it starts the old FastAPI backend or /api/review/start, and why the TUI launch must not include --variant.",
+      "expected_output": "The skill should verify the bundled PR watcher script from the review-pr skill and confirm it defaults to the current OpenCode model, whose OpenCode config uses xhigh reasoning effort.",
+      "files": [],
+      "expectations": [
+        "The workflow inspects scripts/pr-watcher.sh under the review-pr skill rather than the old bi-dlh-pr-reviewer repository.",
+        "The workflow confirms the watcher launch template uses cmux/OpenCode with /review-pr and does not start the old FastAPI backend or /api/review/start.",
+        "The workflow confirms the default PR watcher model is azure-cognitive-services/gpt-5.5-1 unless PR_WATCHER_MODEL overrides it.",
+        "The workflow confirms the watcher does not pass --variant to opencode TUI, because that flag is unsupported outside opencode run and causes OpenCode to print help instead of starting.",
+        "The workflow explains that xhigh reasoning comes from the OpenCode model configuration for the default model, not from a watcher CLI --variant flag.",
+        "The workflow confirms the default PR watcher working directory is the review-pr skill directory and the default state file is .pr-watcher-seen-prs under that directory, which is ~/.agents/skills/review-pr in the installed setup unless the corresponding PR_WATCHER_* environment variables override them."
+      ]
+    }
+  ]
+}

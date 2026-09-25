@@ -1,0 +1,18 @@
+{
+  "name": "genie-operations",
+  "version": "1.0.0",
+  "description": "Standalone Databricks Genie automation scripts",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "genie:auth": "node scripts/genie-auth.js",
+    "genie:auth:ms": "node scripts/genie-auth-microsoft.js",
+    "genie:direct": "node scripts/genie-direct.js",
+    "genie:headless": "node scripts/genie-headless.js",
+    "genie:prompt": "node scripts/genie-prompt.js"
+  },
+  "dependencies": {
+    "otpauth": "^9.5.0",
+    "playwright": "^1.58.2"
+  }
+}
