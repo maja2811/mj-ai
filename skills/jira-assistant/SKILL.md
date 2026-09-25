@@ -134,28 +134,46 @@ Present a summary including: key, summary, status, type, priority, assignee, rep
 
 ### 4. Create an Issue
 
-**Before creating any issue, always ask:**
-> "What feature or epic does this belong to? (paste the epic/feature key like BIC-123, or say 'none' to skip)"
+**Before creating any issue, resolve all three of the following. Do not create the issue until each is settled.**
+
+**1. Parent feature**
+> "What feature does this belong to? (paste the feature/epic key like BIC-123, or say 'backlog' if it goes to the backlog)"
 
 - If the user provides a key, look it up to confirm the title, then discover the Cloud hierarchy field through create metadata before including it. Do not assume old Server custom-field IDs.
-- If the user says "none" or similar, skip the epic link and proceed without it.
+- An issue may only be created without a parent if it is explicitly destined for the backlog. Treat a bare "none" as unresolved and ask again: a parent feature, or the backlog.
+
+**2. Sprint**
+> "Which sprint should this go in?"
+
+- Skip this question only when the issue is going to the backlog. Backlog issues get no sprint.
+- Discover the sprint field ID from create metadata (`getJiraIssueTypeMetaWithFields`) — it is a tenant-specific custom field. Never hardcode a Server-era field ID.
+- Find candidate sprints before offering options (for example JQL `project = <KEY> AND sprint in openSprints()`, or the board's sprint list). Do not invent sprint names or IDs.
+- If no sprint is active or the user is unsure, say so and place the issue in the backlog rather than guessing.
+
+**3. Acceptance criteria**
+
+- Required on Tasks and Stories. Do not create one without them.
+- Draft them from the context of the conversation, then show the draft and ask the user to confirm or adjust. Do not silently invent criteria and do not leave the section out.
+- For Bugs, expected-vs-actual behaviour serves this purpose. Sub-tasks may inherit the parent's criteria — say so explicitly rather than omitting silently.
+- If the user genuinely cannot define them yet, create the issue in the backlog and note that acceptance criteria are outstanding.
 
 ### 4a. Description Template (DSB/BIC Standard)
 
 When drafting or writing a description for a Jira task — whether for a new issue or an existing one — use the following structure. All sections use Jira wiki markup (`h2.` headings).
 
-**Always include** these sections when there is content for them:
+**Always include:**
 - `h2. Background` — context and reason for the task
 - `h2. Purpose` — what the task aims to achieve
 - `h2. Users` — who will use or benefit from the output
+- `h2. Acceptance Criteria` — numbered list (`#`) of conditions that must be true for the task to be considered done
 
 **Only include if the user provides content:**
 - `h2. Refinement Notes` — open questions, assumptions, or things to clarify before/during development
-- `h2. Acceptance Criteria` — numbered list (`#`) of conditions that must be true for the task to be considered done
 
 **Rules:**
 - Never include a section with placeholder text (e.g. "_To be filled in_") — omit the section entirely if there is no content for it
-- Refinement Notes and Acceptance Criteria are optional — do not prompt the user for them unless they ask, or unless context clearly warrants it
+- Acceptance Criteria are required on Tasks and Stories (see step 4) — draft them and confirm with the user rather than omitting the section
+- Refinement Notes are optional — do not prompt the user for them unless they ask, or unless context clearly warrants it
 - When the user provides notes, requirements, or bullet points, use your judgement to distribute content across the appropriate sections
 - Acceptance Criteria items should be written as independently verifiable statements (not vague goals)
 
