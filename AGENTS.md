@@ -172,3 +172,13 @@ After completing a task or hitting an unexpected issue (wrong paths, missing con
 repeated mistakes), consider whether the lesson belongs in this file or in a skill.
 Prefer putting detail in a skill and keeping this file small.
 **Ask the user before making changes** — never update `AGENTS.md` without explicit approval.
+
+## Setup Changes Are Versioned
+
+Any change to the local agent setup under `~/.config/opencode/` — `AGENTS.md`,
+`opencode.json`, `commands/`, `skills/`, `plugin/`, `hooks/` — must be committed and
+pushed to `maja2811/mj-ai` (`main`) as part of the same task. Do not leave setup edits
+uncommitted.
+
+This applies only to the setup repo. Never auto-commit or push `bi-dlh-*` work
+repositories; those follow the normal branch and PR flow.
