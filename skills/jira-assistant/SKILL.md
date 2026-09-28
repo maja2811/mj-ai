@@ -134,18 +134,18 @@ Present a summary including: key, summary, status, type, priority, assignee, rep
 
 ### 4. Create an Issue
 
-**Before creating any issue, resolve all three of the following. Do not create the issue until each is settled.**
+**Before creating an issue, resolve its placement and acceptance criteria. Do not create it until the applicable items below are settled.**
 
 **1. Parent feature**
 > "What feature does this belong to? (paste the feature/epic key like BIC-123, or say 'backlog' if it goes to the backlog)"
 
 - If the user provides a key, look it up to confirm the title, then discover the Cloud hierarchy field through create metadata before including it. Do not assume old Server custom-field IDs.
-- An issue may only be created without a parent if it is explicitly destined for the backlog. Treat a bare "none" as unresolved and ask again: a parent feature, or the backlog.
+- An issue may be created without a parent when it is explicitly destined for the backlog or when the user identifies the project as a maintenance/support board without feature hierarchy. Otherwise, treat a bare "none" as unresolved and ask again: a parent feature, or the backlog.
 
 **2. Sprint**
 > "Which sprint should this go in?"
 
-- Skip this question only when the issue is going to the backlog. Backlog issues get no sprint.
+- Skip this question when the issue is going to the backlog or the user identifies the project as a maintenance/support board. Do not set a sprint in either case unless the user explicitly requests one.
 - Discover the sprint field ID from create metadata (`getJiraIssueTypeMetaWithFields`) — it is a tenant-specific custom field. Never hardcode a Server-era field ID.
 - Find candidate sprints before offering options (for example JQL `project = <KEY> AND sprint in openSprints()`, or the board's sprint list). Do not invent sprint names or IDs.
 - If no sprint is active or the user is unsure, say so and place the issue in the backlog rather than guessing.
@@ -157,18 +157,20 @@ Present a summary including: key, summary, status, type, priority, assignee, rep
 - For Bugs, expected-vs-actual behaviour serves this purpose. Sub-tasks may inherit the parent's criteria — say so explicitly rather than omitting silently.
 - If the user genuinely cannot define them yet, create the issue in the backlog and note that acceptance criteria are outstanding.
 
-### 4a. Description Template (DSB/BIC Standard)
+### 4a. Description Format and Template (DSB/BIC Standard)
 
-When drafting or writing a description for a Jira task — whether for a new issue or an existing one — use the following structure. All sections use Jira wiki markup (`h2.` headings).
+Jira Cloud descriptions and comments must be sent as Atlassian Document Format (ADF). Never submit Jira wiki markup (`h2.`, `#`, or `*`) as literal description text: it will render incorrectly.
+
+Keep descriptions concise by default. Use plain ADF paragraphs, headings, and bullet/numbered lists only where they improve readability. Use the full structure below when the task needs that context; omit empty sections and collapse short support tasks to the essential context and acceptance criteria.
 
 **Always include:**
-- `h2. Background` — context and reason for the task
-- `h2. Purpose` — what the task aims to achieve
-- `h2. Users` — who will use or benefit from the output
-- `h2. Acceptance Criteria` — numbered list (`#`) of conditions that must be true for the task to be considered done
+- Background heading — context and reason for the task
+- Purpose heading — what the task aims to achieve
+- Users heading — who will use or benefit from the output
+- Acceptance Criteria heading — numbered conditions that must be true for the task to be considered done
 
 **Only include if the user provides content:**
-- `h2. Refinement Notes` — open questions, assumptions, or things to clarify before/during development
+- Refinement Notes heading — open questions, assumptions, or things to clarify before/during development
 
 **Rules:**
 - Never include a section with placeholder text (e.g. "_To be filled in_") — omit the section entirely if there is no content for it
@@ -181,32 +183,32 @@ When drafting or writing a description for a Jira task — whether for a new iss
 
 When the user asks to "refine" a task or "write acceptance criteria" for a Power BI-related issue, always use this specific structure. Apply it whether the task is a new report, dashboard, data model, or any BI deliverable.
 
-**Structure to use (Jira wiki markup):**
+**Structure to use (rendered as ADF headings and lists):**
 
 ```
-h2. Background
-{Explain why this task exists — what business need or gap it addresses}
+Background
+{Explain why this task exists - what business need or gap it addresses}
 
-h2. Purpose
-{What the deliverable aims to achieve — the outcome, not the activity}
+Purpose
+{What the deliverable aims to achieve - the outcome, not the activity}
 
-h2. Users
-{Who will use or benefit from this — be specific about roles or teams}
+Users
+{Who will use or benefit from this - be specific about roles or teams}
 
-h2. Refinement Notes
-* {Open question or assumption #1}
-* {Open question or assumption #2}
-* {Add more as needed — things to clarify before or during development}
+Refinement Notes
+- {Open question or assumption #1}
+- {Open question or assumption #2}
+- {Add more as needed - things to clarify before or during development}
 
-h2. Acceptance Criteria
-# {Functional requirement 1 — specific and verifiable}
-# {Functional requirement 2}
-# {... task-specific criteria derived from the requirements ...}
-# The report/dashboard is built in accordance with DSB BI best practices (naming conventions, data model structure, DAX patterns, and visual standards)
-# The report/dashboard has been validated through the PBI Reviewer tool and passes all applicable governance and BPA checks
-# The report/dashboard is published to the DSB enterprise Power BI capacity (not a personal or shared capacity)
-# The report workspace and access permissions are configured so that all relevant end users can view the report
-# The report has been reviewed and formally accepted by the designated stakeholder
+Acceptance Criteria
+1. {Functional requirement 1 - specific and verifiable}
+2. {Functional requirement 2}
+3. {... task-specific criteria derived from the requirements ...}
+4. The report/dashboard is built in accordance with DSB BI best practices (naming conventions, data model structure, DAX patterns, and visual standards)
+5. The report/dashboard has been validated through the PBI Reviewer tool and passes all applicable governance and BPA checks
+6. The report/dashboard is published to the DSB enterprise Power BI capacity (not a personal or shared capacity)
+7. The report workspace and access permissions are configured so that all relevant end users can view the report
+8. The report has been reviewed and formally accepted by the designated stakeholder
 ```
 
 **Rules for this template:**
@@ -216,13 +218,7 @@ h2. Acceptance Criteria
 - If the issue already has a partial description, preserve and incorporate existing content rather than replacing it wholesale
 - **Before writing or updating the description, always ask the user:** "Is there a specific stakeholder name who will sign off on this? (e.g., 'Morten', or say 'unknown' to leave it generic)" — then substitute the name into the final AC item: "The report has been reviewed and formally accepted by {Name}"
 
-```bash
-curl -s -X POST \
-  -H "Authorization: Basic $basic" \
-  -H "Content-Type: application/json" \
-  -d "{\"fields\":{\"project\":{\"key\":\"{PROJECT_KEY}\"},\"summary\":\"{SUMMARY}\",\"description\":{\"type\":\"doc\",\"version\":1,\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"{DESCRIPTION}\"}]}]},\"issuetype\":{\"name\":\"{TYPE}\"}}}" \
-  "https://dsbdk.atlassian.net/rest/api/3/issue"
-```
+For REST fallback, construct an ADF document with structured nodes for headings and lists. Do not serialize wiki markup into an ADF paragraph.
 
 > Cloud custom fields are tenant-specific. Discover the field ID and schema through `/rest/api/3/field` and create metadata before using an Epic/Feature link. Do not reuse Server field IDs blindly.
 
