@@ -168,6 +168,10 @@ a replacement for understanding, planning, or implementation. Always ask before 
 
 ## Planning and Audit Modes
 
+- For every new task, first assess whether an `improve` implementation plan is warranted.
+  Default to `improve plan <description>` for non-trivial coding, debugging, refactoring,
+  or configuration work; skip it only for minor, tightly scoped changes where the correct
+  edit and validation are immediately clear.
 - Use the `improve` skill for read-only repository audits, prioritized improvement
   findings, roadmap work, or self-contained implementation plans. It may write only under
   `plans/` or `advisor-plans/`; it does not implement source changes.
