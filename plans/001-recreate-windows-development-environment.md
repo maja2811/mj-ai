@@ -272,7 +272,15 @@ of truth and should be updated on the old laptop if a missing requirement is fou
    databricks auth profiles
    ```
 
-   Current profiles that may need recreation are `rejseplan`, `spassenger`, and `commercial-spassenger-prd`. Select hosts from the project configuration or the DSB team, not from this plan.
+    Create profiles only for workspaces you need. Current mappings are:
+
+    | Profile | Workspace | Intended use |
+    |---|---|---|
+    | `commercial-dev` | `https://adb-3304658076883586.6.azuredatabricks.net/` | Commercial development; can read commercial production data when access permits. |
+    | `datamart-prd` | `https://adb-2848871633622482.2.azuredatabricks.net/` | Read production datamart data. |
+    | `commercial-prd` | `https://adb-129115855181532.12.azuredatabricks.net/` | Commercial production work. |
+
+    A profile selects a workspace, not a cluster. Use the open project's configuration to identify the relevant workspace, then ask the developer to select a profile before every Databricks command. Do not auto-select a profile.
 6. Set `DATABRICKS_TOKEN` only if the Databricks AI Gateway provider needs it and a team-approved short-lived token flow exists. Keep it in the user environment or the approved secret store, never in `opencode.json`. OAuth profiles alone do not necessarily populate this variable.
 7. Use the project-specific VS Code **Connect to Databricks** task where it is provided. It performs browser OAuth and configures the profile expected by the project.
 

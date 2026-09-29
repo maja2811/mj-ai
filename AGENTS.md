@@ -25,11 +25,12 @@ skills and are loaded on demand — see Skill Routing below.
 
 ### Always ask first
 
-- **Databricks profile** — never auto-select. Ask which profile to use.
+- **Databricks profile** — a profile selects a workspace, not a cluster. Use the open project's configuration to identify the relevant workspace, then ask which profile to use before any Databricks command. Never auto-select.
 - **pytest scope** — never run the full suite unassisted. Present the available
   test files/directories and let the user choose.
 - **`review-local`** — never start it implicitly. Ask before invoking.
 - **Edits to this file** — see Self-Improvement below.
+- **VS Code CLI** — do not run `code` or `code.cmd`; they open VS Code windows on this workstation. Use filesystem inspection and other CLI tools unless the user explicitly asks to launch VS Code.
 
 ### Windows reserved filenames
 
@@ -38,6 +39,14 @@ This machine runs Windows. Never create files named after reserved device names:
 without extensions). These route to a system device or create undeletable ghost files.
 If you need a null/discard target, redirect output in code rather than writing to a
 `nul` file.
+
+### Databricks workspace profiles
+
+| Profile | Workspace | Intended use |
+|---|---|---|
+| `commercial-dev` | `https://adb-3304658076883586.6.azuredatabricks.net/` | Commercial development; can read commercial production data when access permits. |
+| `datamart-prd` | `https://adb-2848871633622482.2.azuredatabricks.net/` | Read production datamart data. |
+| `commercial-prd` | `https://adb-129115855181532.12.azuredatabricks.net/` | Commercial production work. |
 
 ## Governance & References
 
