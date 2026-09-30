@@ -1,6 +1,6 @@
 ---
 name: "dlh-dev-conventions"
-description: "Local development conventions for DSB Data Lakehouse (bi-dlh-*) repositories: Python/SQL code style, imports, type hints, docstrings, naming, error handling, logging, PySpark patterns, pytest layout, uv/Ruff/mypy tooling, pre-push validation commands, dependency and requirements.txt/pyproject.toml rules, databricks-connect version matching, ci_cd/adb_vars_*.yml and project_config.yml expectations, Databricks CLI profiles, and Unity Catalog table-path resolution. Load when writing, editing, reviewing, or validating code in a bi-dlh-* repo, when running lint/type/test checks, when changing dependencies or CI/CD config, or when querying Databricks from the CLI."
+description: "Local development conventions for DSB Data Lakehouse (bi-dlh-*) repositories: Python/SQL code style, imports, type hints, docstrings, naming, error handling, logging, PySpark patterns, pytest layout, uv/Ruff/mypy tooling, pre-push validation commands, dependency and requirements.txt/pyproject.toml rules, dlh-dmt-helper version pinning and feed rules, databricks-connect version matching, ci_cd/adb_vars_*.yml and project_config.yml expectations, Databricks CLI profiles, and Unity Catalog table-path resolution. Load when writing, editing, reviewing, or validating code in a bi-dlh-* repo, when running lint/type/test checks, when changing dependencies or the helper pin, when changing CI/CD config, or when querying Databricks from the CLI."
 metadata:
   version: "1.0.0"
 ---
@@ -47,15 +47,14 @@ Never use raw `databricks api post` calls to the SQL Statement Execution API.
 Databricks skills are managed by the CLI, not hand-copied:
 `databricks aitools list` / `install --skills <name> --agents opencode` / `update`.
 
-### Workspace profiles (`~/.databrickscfg`)
+### Workspace profiles
 
-| Profile      | Workspace                                    | Usage              |
-|--------------|----------------------------------------------|--------------------|
-| `rejseplan`  | `adb-2848871633622482.2.azuredatabricks.net`  | Rejseplan datamart |
-| `spassenger` | `adb-3304658076883586.6.azuredatabricks.net`  | S-passenger source |
-| `DEFAULT`    | `adb-3304658076883586.6.azuredatabricks.net`  | Default workspace  |
+A profile selects a workspace, not a cluster. `~/.databrickscfg` is the source of truth —
+list them with `databricks auth profiles` instead of trusting a copied table. Names encode
+purpose (`commercial-dev`, `datamart-prd`, `commercial-prd`).
 
-Always ask the user which profile to use. Never auto-select.
+Default to `commercial-dev`, but confirm with the user before any Databricks command and
+never auto-select a `*-prd` profile.
 
 ### Unity Catalog naming
 
@@ -166,13 +165,29 @@ Google style. Every public function gets a docstring with `Args:`, `Returns:`,
 - `adb/requirements.txt` is the **source of truth** for CI/CD runtime dependencies.
 - `pyproject.toml` `[dependency-groups] dev` mirrors it for local dev.
   Update `requirements.txt` first.
-- `dlh-dmt-helper` is pinned to the private Azure DevOps feed to prevent
-  dependency confusion.
 - PySpark is overridden to never install (databricks-connect bundles its own).
 - **Installing dependencies in project repos** (`bi-dlh-src-*`, `bi-dlh-datamart-*`):
   use the VS Code task **Install Dependencies** (Ctrl+Shift+P > Tasks: Run Task)
   instead of bare `uv sync`. That task handles PyPI token setup for the private
   Azure DevOps feed. In the helper repo (`bi-dlh-helper`), plain `uv sync` works.
+
+### `dlh-dmt-helper` version
+
+- Use `dlh-dmt-helper` whenever it covers the task.
+- Pin source: `adb/requirements.txt`, otherwise top-level `requirements.txt`. Stay
+  compatible with the pin unless the user asks to upgrade.
+- Pinned to the private Azure DevOps feed to prevent dependency confusion. Check the
+  latest version and the
+  [CHANGELOG](https://github.com/DanskeStatsbaner/bi-dlh-helper/blob/main/CHANGELOG.md)
+  only via that feed or `DanskeStatsbaner/bi-dlh-helper` — never public indexes or
+  mirrors. When bumping, look for breaking API and behavioural changes (e.g. logger
+  `humio` defaults).
+- For runtime-sensitive work, compare the pin against
+  `importlib.metadata.version("dlh-dmt-helper")`; do not trust `dlh_dmt_helper.__version__`.
+- Prefer helper Git tags over `main` when exact behaviour matters; use `main` only for
+  unreleased work or when no tag matches, and state that limitation.
+- Packaged `dlh-*` skills need helper 13.5.0+. On older pins, read installed or
+  version-matched source instead of trusting synced skills.
 
 ## Shared CI/CD & project infrastructure
 
@@ -189,9 +204,6 @@ drives all deployment pipelines. Its expectations:
 - **`pyproject.toml`** — the `databricks-connect` version MUST match `spark_version`
   from `project_config.yml` (runtime `15.4.x` -> `databricks-connect==15.4.*`,
   runtime `17.3.x` -> `databricks-connect==17.3.*`).
-- When bumping `dlh-dmt-helper`, check the
-  [CHANGELOG](https://github.com/DanskeStatsbaner/bi-dlh-helper/blob/main/CHANGELOG.md)
-  for breaking API and behavioural changes (e.g. logger `humio` defaults).
 
 For full local environment setup (VS Code config, `pyproject.toml` structure, UV index
 configuration, `.vscode/` tasks and settings), see

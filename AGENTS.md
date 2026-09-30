@@ -1,208 +1,166 @@
 # Global Agent Instructions - DSB Data Lakehouse
 
-Default baseline for DSB Data Lakehouse repositories (`bi-dlh-*`).
-Repo-local `AGENTS.md` files are more specific and override this file when present.
-
-This file holds only what must apply to **every** request. Detailed conventions live in
-skills and are loaded on demand — see Skill Routing below.
+Baseline for DSB Data Lakehouse repositories (`bi-dlh-*`). A repo-local `AGENTS.md` is
+more specific and overrides this file. Only universal rules live here; detail lives in
+skills, loaded on demand.
 
 ## Non-Negotiables
 
-- Stay within the current `bi-dlh-*` project tree unless the user explicitly expands
-  scope. The normal exceptions are explicitly named source-of-truth repositories such as
-  `bi-dlh-documentation`, `bi-dlh-helper`, and `bi-dlh-project-template`.
-- In Databricks workspace contexts, never inspect sibling projects or other users'
-  `/Users/...` or `/Repos/...` directories unless explicitly requested.
-- If required information is unavailable inside the allowed scope, say what was checked.
-  Only widen scope after explicit user approval.
-- Prefer verified sources over assumptions. If a required source, environment check,
-  private feed, or skill-sync step is blocked, state the blocker and use the best
-  verified fallback.
+- Stay in the current `bi-dlh-*` tree unless the user expands scope. Exceptions:
+  `bi-dlh-documentation`, `bi-dlh-helper`, `bi-dlh-project-template`.
+- In Databricks workspaces, never inspect sibling projects or other users' `/Users/...`
+  or `/Repos/...` directories unless asked.
+- If required information is out of scope, say what you checked. Widen only after approval.
+- Prefer verified sources over assumptions. If a source, environment check, private feed,
+  or skill sync is blocked, state the blocker and use the best verified fallback.
 - No hardcoded secrets or credentials. Use Key Vault and environment variables.
-- For helper/domain work, load the relevant `dlh-*` skill before relying on generic
-  knowledge. If the skill is missing or unreadable, try the current-tool sync path
-  before falling back to installed or version-matched helper source.
+- Use `dlh-dmt-helper` whenever it covers the task, and stay compatible with the
+  project's pin. Version and feed rules live in `dlh-dev-conventions`.
+- Load the relevant `dlh-*` skill before relying on generic knowledge. If it is missing or
+  unreadable, try the sync path below before falling back to installed or version-matched
+  helper source.
 
 ### Always ask first
 
-- **Databricks profile** — a profile selects a workspace, not a cluster. Use the open project's configuration to identify the relevant workspace, then ask which profile to use before any Databricks command. Never auto-select.
-- **pytest scope** — never run the full suite unassisted. Present the available
-  test files/directories and let the user choose.
-- **`review-local`** — never start it implicitly. Ask before invoking.
-- **Edits to this file** — see Self-Improvement below.
-- **VS Code CLI** — do not run `code` or `code.cmd`; they open VS Code windows on this workstation. Use filesystem inspection and other CLI tools unless the user explicitly asks to launch VS Code.
+- **Databricks profile** — a profile selects a workspace, not a cluster. Default to
+  `commercial-dev`, list alternatives with `databricks auth profiles`, and confirm before
+  any Databricks command. Never auto-select a `*-prd` profile.
+- **pytest scope** — never run the full suite unassisted. List the available test
+  files/directories and let the user choose.
+- **`review-local`** — never start it implicitly.
+- **Edits to this file** — never update `AGENTS.md` without explicit approval.
+- **VS Code CLI** — never run `code` or `code.cmd`; they open windows on this workstation.
+  Use filesystem inspection and other CLI tools unless the user asks to launch VS Code.
 
 ### Windows reserved filenames
 
-This machine runs Windows. Never create files named after reserved device names:
-`CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`, `LPT0`–`LPT9` (case-insensitive, with or
-without extensions). These route to a system device or create undeletable ghost files.
-If you need a null/discard target, redirect output in code rather than writing to a
-`nul` file.
-
-### Databricks workspace profiles
-
-| Profile | Workspace | Intended use |
-|---|---|---|
-| `commercial-dev` | `https://adb-3304658076883586.6.azuredatabricks.net/` | Commercial development; can read commercial production data when access permits. |
-| `datamart-prd` | `https://adb-2848871633622482.2.azuredatabricks.net/` | Read production datamart data. |
-| `commercial-prd` | `https://adb-129115855181532.12.azuredatabricks.net/` | Commercial production work. |
+Never create files named `CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`, `LPT0`–`LPT9` (any
+case, with or without extension) — they route to a device or leave undeletable ghost
+files. For a null/discard target, redirect output in code instead of writing a `nul` file.
 
 ## Governance & References
 
-The authoritative company source is `DanskeStatsbaner/bi-dlh-documentation` on `main`.
-Start from `readme.md` and `checklist.md`, then follow task-relevant links such as
-`best-practices.md`, `monitoring.md`, `data-quality.md`, and `databricks-jobs.md`.
+Authoritative source: `DanskeStatsbaner/bi-dlh-documentation` on `main`. Start at
+`readme.md` and `checklist.md`, then follow task-relevant links such as
+`best-practices.md`, `monitoring.md`, `data-quality.md`, `databricks-jobs.md`.
 
-- Platform docs — [bi-dlh-documentation](https://github.com/DanskeStatsbaner/bi-dlh-documentation)
-- Helper API and examples — [bi-dlh-helper](https://github.com/DanskeStatsbaner/bi-dlh-helper)
-- CI/CD pipelines — [bi-dlh-dmt-ci-cd](https://github.com/DanskeStatsbaner/bi-dlh-dmt-ci-cd)
-- Project scaffold — [bi-dlh-project-template](https://github.com/DanskeStatsbaner/bi-dlh-project-template)
-- Reference implementation — [bi-dlh-src-commercial-spassenger](https://github.com/DanskeStatsbaner/bi-dlh-src-commercial-spassenger)
+Also under `github.com/DanskeStatsbaner/`: `bi-dlh-helper` (helper API and examples),
+`bi-dlh-dmt-ci-cd` (CI/CD pipelines), `bi-dlh-project-template` (project scaffold),
+`bi-dlh-src-commercial-spassenger` (reference implementation).
 
-Read repo-local `checklist.md` when present, but treat it as potentially stale if it
-conflicts with the documentation repo or current helper guidance.
-When reading private GitHub docs with `gh api`, request decoded readable file content,
-not raw `contents` JSON unless metadata is explicitly needed.
-
-## Helper Version
-
-- All DSB Databricks Delta Lake projects must use `dlh-dmt-helper` when it covers the task.
-- Project pin source: prefer `adb/requirements.txt`; otherwise top-level `requirements.txt`.
-- Keep code compatible with the pinned version unless the user explicitly asks to upgrade.
-- For runtime-sensitive work, compare the pinned version with the installed runtime
-  version using `importlib.metadata.version("dlh-dmt-helper")`; do not rely on
-  `dlh_dmt_helper.__version__`.
-- Prefer helper Git tags over `main` when exact behaviour matters; use `main` only for
-  unreleased work or when no matching tag exists, and state that limitation.
-- Latest-version and changelog checks must come from the private package feed or
-  `DanskeStatsbaner/bi-dlh-helper` — never public package indexes or mirrors.
-- Packaged `dlh-*` skills exist in `dlh-dmt-helper` 13.5.0+. For older pins, inspect
-  installed or version-matched helper source instead of trusting synced skills.
+Read repo-local `checklist.md` when present, but treat it as potentially stale where it
+conflicts with the documentation repo or current helper guidance. When reading private
+GitHub docs with `gh api`, request decoded file content, not raw `contents` JSON unless
+you need metadata.
 
 ## Skill Routing
 
-| When the task involves | Use skill |
-|---|---|
-| Delta tables, CRUD, merge, CDC ingestion, SCD Type 2, deletes, synchronization, replay, diagnostics, transform pipelines, metrics, Delta maintenance | `dlh-tables` |
-| Databricks widgets, deduplication, primary/foreign keys, clustering, metadata.yml generation, table conversion, Spark utility helpers | `dlh-common-functions` |
-| DQX-backed data quality checks, result persistence, governance categorization | `dlh-data-quality` |
-| Structured logging, notebook-safe logs, Loki integration, module-level log control, flushing, redaction, domain exceptions | `dlh-monitoring` |
-| Databricks job metadata, run registration, trigger-table workflows, dependent job execution | `dlh-databricks-jobs` |
-| Governed CSV ingestion from volumes, volume creation, schema enforcement, snake_case normalization, audit columns, GDE SCD2 behavior | `dlh-gde` |
-| LLM calls through Databricks serving endpoints or Unity Catalog metadata generation | `dlh-ai` |
-| Code style, imports, type hints, docstrings, PySpark patterns, pytest layout, uv/Ruff/mypy, pre-push validation, dependencies, CI/CD vars, Databricks CLI profiles, UC table paths | `dlh-dev-conventions` |
-| DSB organisational conventions: catalog/schema naming, AD groups, UC permissions, SCD/Kimball rules, job YAML placement, project lifecycle, deviation sign-off | `dlh-platform` |
-| Databricks CLI auth, ad-hoc SQL queries, schema discovery, warehouse lookup | `databricks-core` |
-| Extended Databricks investigation (4+ queries, cross-table root cause, exploratory analysis) | `genie` |
+Skill descriptions are already in context — route on those. Additional rules:
 
-If a task spans domains, read all relevant skills.
+- Coding, refactoring, debugging, review → `ponytail` (see Style).
+- Audits, roadmaps, self-contained implementation plans → `improve` (see Planning and
+  Audit Modes).
+- Prose deliverables → `stop-slop` (see Style).
+- Any `bi-dlh-*` code, tests, tooling, dependencies, CI/CD vars, or UC table paths →
+  `dlh-dev-conventions`.
+- Ad-hoc Databricks queries → `databricks-core`. Escalate to `genie` for extended
+  investigation (4+ queries, cross-table root cause, exploratory analysis).
+- A task spanning domains → read every relevant skill.
 
 ### Jira and Confluence
 
-Atlassian MCP tools are disabled globally to keep them out of context, and enabled only
-on the `jira` subagent. Route Jira/Confluence work through `/jira <request>` or
-`@jira`, which loads the `jira-assistant` skill with the MCP available. Do not attempt
-Atlassian work from `build` or `plan` — the tools are not there.
+Atlassian MCP is disabled globally to keep it out of context and enabled only on the
+`jira` subagent. Route all Jira/Confluence work through `/jira <request>` or `@jira`,
+which loads `jira-assistant` with the MCP available. Do not attempt it from `build` or
+`plan` — the tools are not there.
 
 ### Skill discovery and sync
 
-- Prefer the project's `.opencode/skills/` copies when present — they are synced from the
-  project's pinned `dlh-dmt-helper` version and are authoritative for that project.
-- If a required `dlh-*` skill is not in the project, use the globally available skill as
-  a fallback and verify the project's helper pin before relying on version-sensitive behaviour.
-- If neither exists, run `sync_opencode_skills()` after the project environment is
-  installed and `dlh_dmt_helper` imports successfully. Do not invent helper APIs while
-  skill sync is unavailable.
-- Re-run `sync_opencode_skills()` after any change to the project's `dlh-dmt-helper`
-  pin. Synced skills snapshot the installed version and go stale silently otherwise.
-  The sync is idempotent, so re-running when unsure is free.
-- Databricks skills (`databricks-core`, etc.) are managed by the Databricks CLI:
-  `databricks aitools list | install | update`. Do not hand-copy them.
+- The project's `.opencode/skills/` wins when present; it is synced from the project's
+  pinned `dlh-dmt-helper` version and is authoritative for that project.
+- Missing there → use the global skill as fallback, but verify the project's pin before
+  relying on version-sensitive behaviour.
+- Missing everywhere → run `sync_opencode_skills()` from `dlh_dmt_helper.skills.opencode`
+  once the project environment is installed and the package imports. Never invent helper
+  APIs while sync is unavailable. (Sibling helpers exist for `genie`, `github_copilot`,
+  and project agents files — use only the one matching the tool in use.)
+- Re-run it after any change to the project's helper pin. Synced skills snapshot the
+  installed version and go stale silently; the sync is idempotent, so re-run when unsure.
+- Databricks skills are managed by the Databricks CLI
+  (`databricks aitools list | install | update`). Never hand-copy them.
+- If sync is blocked by auth, environment setup, or package import, say so and fall back
+  to pinned requirements plus installed or version-matched source. If the package imports
+  but native skill files are unusable, read packaged content with `list_skill_names()`,
+  `read_skill()`, and `read_skill_reference()` from `dlh_dmt_helper.skills`.
 
-Use only the sync helper that matches the current tool:
+## Style
 
-```python
-from dlh_dmt_helper.skills.genie import sync_genie_skills
-from dlh_dmt_helper.skills.github_copilot import sync_github_copilot_skills
-from dlh_dmt_helper.skills.opencode import sync_opencode_skills
-from dlh_dmt_helper.skills.project import sync_project_agents_file
-```
-
-If sync cannot run because auth, environment setup, or package import is blocked, say so
-and fall back to pinned requirements plus installed or version-matched source. If native
-skill files cannot be used but the package imports, read packaged skill content with
-`list_skill_names()`, `read_skill()`, and `read_skill_reference()` from `dlh_dmt_helper.skills`.
-
-## Style Default
-
-For coding, refactoring, debugging, and review tasks, use the `ponytail` skill at `full`
-by default. Prefer the smallest correct change, reuse existing code, and avoid
-speculative abstractions while preserving validation, security, error handling,
-accessibility, and required tests.
-
-Use normal, clear prose. Do not apply `ponytail` to non-coding tasks.
-Honor explicit overrides such as `ponytail ultra`, `ponytail off`, or `normal mode`
-for the current session.
+- Coding, refactoring, debugging, and review use `ponytail` at `full` by default:
+  smallest correct change, reuse existing code, no speculative abstractions — while
+  preserving validation, security, error handling, accessibility, and required tests.
+  Honor `ponytail ultra`, `ponytail off`, or `normal mode` for the session.
+- Never apply `ponytail` to non-coding tasks. Use normal, clear prose.
+- Prose deliverables (markdown docs, Confluence pages, PR and review write-ups) get
+  `stop-slop` as a final editing pass. Skip it for docstrings (Google style per
+  `dlh-dev-conventions`), commit messages, and templated content. On Danish Confluence
+  pages apply its structural rules only; its phrase lists are English.
 
 ## Default Development Workflow
 
-For coding, debugging, refactoring, and review tasks, use this lifecycle. Keep it
-lightweight; skip a separate plan for trivial changes.
+Use this lifecycle for coding, debugging, refactoring, and review. Keep it lightweight;
+skip a separate plan for trivial changes.
 
-1. **Explore** — Understand before acting. Inspect the relevant repo, docs, dependencies,
-   external systems, constraints, and existing behaviour as needed. Load applicable
-   domain skills before relying on generic knowledge. Search narrowly and stop when the
-   problem and change boundary are understood.
-2. **Plan** — State the root cause or intended behaviour, smallest viable approach,
+1. **Explore** — understand before acting. Inspect the repo, docs, dependencies, external
+   systems, constraints, and existing behaviour as needed. Load applicable domain skills
+   before relying on generic knowledge. Search narrowly and stop once the problem and the
+   change boundary are clear.
+2. **Plan** — state the root cause or intended behaviour, smallest viable approach,
    affected surfaces, acceptance criteria, and validation scope. Surface uncertainty
-   before implementation.
-3. **Implement** — Smallest correct diff on the current branch. Reuse existing helpers
-   and patterns. Do not add role-play agents or abstractions unless they provide a
-   concrete capability, permission boundary, independent context, or parallelism benefit.
-4. **Test** — Run the smallest relevant validation first, then broader checks when
-   justified. Ask which pytest scope to run before executing pytest. Report skipped
-   checks and blockers explicitly.
-5. **Review and iterate** — Inspect the diff and validation results, correct issues, and
-   repeat the relevant checks before considering the task complete.
+   before implementing.
+3. **Implement** — smallest correct diff on the current branch, reusing existing helpers
+   and patterns. No role-play agents or abstractions without a concrete capability,
+   permission boundary, independent context, or parallelism benefit.
+4. **Test** — smallest relevant validation first, broader checks when justified. Ask which
+   pytest scope to run before executing pytest. Report skipped checks and blockers.
+5. **Review and iterate** — inspect the diff and validation results, correct what you
+   find, and re-run the relevant checks before calling the task complete.
 
 Subagents are optional. Use them when work is genuinely independent or benefits from
-isolation — parallel repo exploration, research, test design, or independent review.
-Prefer one primary agent for sequential work. Give each subagent a narrow objective, the
-required file paths and constraints, and ask for concise evidence-based output; the
-primary agent owns synthesis, edits, and final verification.
+isolation — parallel repo exploration, research, test design, independent review —
+otherwise stay with one primary agent for sequential work. Give each subagent a narrow
+objective, the required file paths, and the constraints, and ask for concise
+evidence-based output. The primary agent owns synthesis, edits, and final verification.
 
-Use `review-local` only as a final review step after implementation and tests, never as
-a replacement for understanding, planning, or implementation. Always ask before invoking it.
+`review-local` is a final review step after implementation and tests, never a replacement
+for understanding, planning, or implementing. Always ask before invoking it.
 
 ## Planning and Audit Modes
 
-- For every new task, first assess whether an `improve` implementation plan is warranted.
-  Default to `improve plan <description>` for non-trivial coding, debugging, refactoring,
-  or configuration work; skip it only for minor, tightly scoped changes where the correct
-  edit and validation are immediately clear.
-- Use the `improve` skill for read-only repository audits, prioritized improvement
-  findings, roadmap work, or self-contained implementation plans. It may write only under
-  `plans/` or `advisor-plans/`; it does not implement source changes.
-- Treat `plans/` and `advisor-plans/` as local advisory artifacts. Do not stage, commit,
-  push, or include them in implementation PRs unless the user explicitly requests it.
-- Use the normal workflow for direct implementation requests. Do not invoke `improve` as
-  a substitute for implementation unless the user explicitly asks for a plan or audit.
+- Assess every new task for an `improve` plan. Default to `improve plan <description>` for
+  non-trivial coding, debugging, refactoring, or configuration work; skip it only for
+  minor, tightly scoped changes where the correct edit and its validation are immediately
+  clear.
+- Use `improve` for read-only repository audits, prioritized findings, roadmap work, and
+  self-contained implementation plans. It writes only under `plans/` or `advisor-plans/`
+  and never changes source.
+- Treat `plans/` and `advisor-plans/` as local advisory artifacts. Never stage, commit,
+  push, or include them in implementation PRs unless the user asks.
+- Direct implementation requests use the normal workflow. Never use `improve` as a
+  substitute for implementing unless the user explicitly asks for a plan or audit.
 - When delegating a plan, treat the executor's diff as untrusted until scope, tests, and
-  acceptance criteria are checked.
+  acceptance criteria check out.
 
 ## Self-Improvement
 
 After completing a task or hitting an unexpected issue (wrong paths, missing conventions,
-repeated mistakes), consider whether the lesson belongs in this file or in a skill.
-Prefer putting detail in a skill and keeping this file small.
-**Ask the user before making changes** — never update `AGENTS.md` without explicit approval.
+repeated mistakes), consider whether the lesson belongs in this file or in a skill. Prefer
+the skill and keep this file small. Ask the user before changing either.
 
 ## Setup Changes Are Versioned
 
 Any change to the local agent setup under `~/.config/opencode/` — `AGENTS.md`,
 `opencode.json`, `commands/`, `skills/`, `plugin/`, `hooks/` — must be committed and
-pushed to `maja2811/mj-ai` (`main`) as part of the same task. Do not leave setup edits
+pushed to `maja2811/mj-ai` (`main`) as part of the same task. Never leave setup edits
 uncommitted.
 
 This applies only to the setup repo. Never auto-commit or push `bi-dlh-*` work
