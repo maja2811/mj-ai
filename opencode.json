@@ -114,8 +114,12 @@
   "permission": {
     "bash": {
       "*": "allow",
-      "*git commit*": "ask",
-      "*git push*": "ask"
+      "git commit": "ask",
+      "git commit *": "ask",
+      "git push": "ask",
+      "git push *": "ask",
+      "git -C * commit *": "ask",
+      "git -C * push *": "ask"
     }
   }
 }
