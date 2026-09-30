@@ -28,6 +28,10 @@ skills, loaded on demand.
 - **pytest scope** — never run the full suite unassisted. List the available test
   files/directories and let the user choose.
 - **`review-local`** — never start it implicitly.
+- **Commits and pushes** — ask before `git commit` or `git push`, every time. A rule
+  requiring work to end committed is not permission to decide the work is finished.
+  Run git through the shell `workdir` parameter, never `git -C`, so permission
+  patterns match.
 - **Edits to this file** — never update `AGENTS.md` without explicit approval.
 - **VS Code CLI** — never run `code` or `code.cmd`; they open windows on this workstation.
   Use filesystem inspection and other CLI tools unless the user asks to launch VS Code.
@@ -159,8 +163,9 @@ the skill and keep this file small. Ask the user before changing either.
 ## Setup Changes Are Versioned
 
 Any change to the local agent setup under `~/.config/opencode/` — `AGENTS.md`,
-`opencode.json`, `commands/`, `skills/`, `plugin/`, `hooks/` — must be committed and
-pushed to `maja2811/mj-ai` (`main`) as part of the same task. Never leave setup edits
+`opencode.json`, `commands/`, `skills/`, `plugin/`, `hooks/` — must end the task
+committed and pushed to `maja2811/mj-ai` (`main`). This describes the required end
+state; it does not authorize committing without asking. Never leave setup edits
 uncommitted.
 
 This applies only to the setup repo. Never auto-commit or push `bi-dlh-*` work
