@@ -94,16 +94,12 @@ if (-not $Force) {
     }
 }
 
-# Ensure BurntToast is present (install once, into CurrentUser scope).
-if (-not (Get-Module -ListAvailable -Name BurntToast)) {
-    try {
-        if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
-            Install-PackageProvider -Name NuGet -Force -Scope CurrentUser | Out-Null
-        }
-        Install-Module -Name BurntToast -Scope CurrentUser -Force -AllowClobber | Out-Null
-    }
-    catch { }
-}
+# BurntToast is optional and is never installed from here. A module install in a
+# notification handler needs the NuGet provider bootstrap, which waits on an
+# interactive prompt this process cannot answer, hanging one pwsh per event.
+# Install it once by hand instead:
+#   Install-PackageProvider -Name NuGet -Scope CurrentUser -Force
+#   Install-Module BurntToast -Scope CurrentUser -Force
 
 try {
     Import-Module BurntToast -ErrorAction Stop

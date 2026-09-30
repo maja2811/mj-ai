@@ -1,0 +1,32 @@
+{
+  // Dynamic Context Pruning - https://github.com/Tarquinen/opencode-dynamic-context-pruning
+  "$schema": "https://raw.githubusercontent.com/Opencode-DCP/opencode-dynamic-context-pruning/master/dcp.schema.json",
+
+  "enabled": true,
+
+  // Pin the version deliberately rather than tracking npm latest.
+  "autoUpdate": false,
+
+  "experimental": {
+    // Prune inside subagent sessions too (explore/general/scout/jira and task calls).
+    // If subagent reports start feeling thin, turn this off first - compression
+    // happens before the subagent writes its report, and degrades it silently.
+    "allowSubAgents": true
+  },
+
+  // Shield recent tool output from pruning while it may still be in use.
+  "turnProtection": {
+    "enabled": true,
+    "turns": 4
+  },
+
+  "compress": {
+    // Percentages of the active model's context window, not absolute tokens.
+    // This setup runs gpt-5.6-terra/sol/luna, claude-opus-5 and four Databricks
+    // Claude endpoints, so any fixed number would be wrong for most of them.
+    // On a 200k window this is ~120k / ~160k, leaving headroom to compress
+    // before the hard ceiling triggers opencode's blind compaction.
+    "minContextLimit": "60%",
+    "maxContextLimit": "80%"
+  }
+}
