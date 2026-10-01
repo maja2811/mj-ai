@@ -8,7 +8,7 @@
   "autoUpdate": false,
 
   "experimental": {
-    // Prune inside subagent sessions too (explore/general/scout/jira and task calls).
+    // Prune inside subagent sessions too (explore/general/jira and task calls).
     // If subagent reports start feeling thin, turn this off first - compression
     // happens before the subagent writes its report, and degrades it silently.
     "allowSubAgents": true

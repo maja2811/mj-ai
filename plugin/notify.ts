@@ -6,8 +6,9 @@ import { fileURLToPath } from "node:url"
  * notify plugin
  *
  * Pops a Windows toast when the agent is waiting for you:
- *   - session.idle       -> finished a turn, waiting for your next message
- *   - permission.updated -> blocked on a permission / question prompt
+ *   - session.idle      -> finished a turn, waiting for your next message
+ *   - permission.asked  -> blocked on a permission prompt
+ *   - question.asked    -> blocked on a question prompt
  *
  * The toast includes the session title and project folder so you can tell
  * which window is waiting. It is suppressed when the OpenCode host window
@@ -15,7 +16,7 @@ import { fileURLToPath } from "node:url"
  * Focus detection and the toast itself live in notify.ps1 (best-effort).
  */
 
-const NOTIFY_EVENTS = new Set(["session.idle", "permission.updated"])
+const NOTIFY_EVENTS = new Set(["session.idle", "permission.asked", "question.asked"])
 const DEBOUNCE_MS = 3000
 
 export default (async ({ $, client }) => {
@@ -45,11 +46,13 @@ export default (async ({ $, client }) => {
 
   return {
     event: async ({ event }) => {
-      if (!NOTIFY_EVENTS.has(event.type)) return
+      // v1 plugin typings still list the legacy permission.updated event, so compare as string.
+      const type: string = event.type
+      if (!NOTIFY_EVENTS.has(type)) return
 
       const props = (event as any).properties ?? {}
       const sessionID: string | undefined = props.sessionID
-      const isPermission = event.type === "permission.updated"
+      const isWaiting = type !== "session.idle"
 
       const now = Date.now()
       const key = sessionID ?? "-"
@@ -60,8 +63,8 @@ export default (async ({ $, client }) => {
       const label = title || folder || "session"
       const header = folder ? `OpenCode \u2014 ${folder}` : "OpenCode"
 
-      const body = isPermission
-        ? `Approval needed: ${props.title ?? "permission"}\n${label}`
+      const body = isWaiting
+        ? `${type === "question.asked" ? "Question" : `Approval needed: ${props.permission ?? "permission"}`}\n${label}`
         : `Finished \u2014 waiting for your reply\n${label}`
 
       try {
