@@ -1,9 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "github-copilot/gpt-5.6-terra",
-  "small_model": "github-copilot/gpt-5.6-luna",
-  "plugin": ["@tarquinen/opencode-dcp"],
-  "agent": {
+  "plugins": ["@tarquinen/opencode-dcp"],
+  "agents": {
     "plan": {
       "model": "github-copilot/gpt-5.6-sol"
     },
@@ -11,27 +10,23 @@
       "model": "github-copilot/gpt-5.6-terra"
     },
     "explore": {
-      "model": "github-copilot/gpt-5.6-luna",
-      "variant": "high"
+      "model": "github-copilot/gpt-5.6-luna#high"
+    },
+    "title": {
+      "model": "github-copilot/gpt-5.6-luna"
     },
     "jira": {
       "description": "Jira and Confluence work via the Atlassian MCP: searching, reading, creating, updating, transitioning and commenting on issues, and reading or writing Confluence pages. This is the only agent with Atlassian tools enabled.",
       "mode": "subagent",
       "model": "github-copilot/gpt-5.6-terra",
-      "tools": {
-        "atlassian_*": true
-      }
+      "permissions": [
+        { "action": "atlassian_*", "resource": "*", "effect": "allow" }
+      ]
     }
   },
-  "tools": {
-    "atlassian_*": false
-  },
-  "provider": {
-    "azure-cognitive-services": {
-      "whitelist": [
-        "gpt-5.5-1"
-      ],
-      "options": {
+  "providers": {
+    "azure": {
+      "settings": {
         "apiVersion": "2024-12-01-preview",
         "useDeploymentBasedUrls": true,
         "useCompletionUrls": true
@@ -43,15 +38,9 @@
       }
     },
     "databricks": {
-      "npm": "@ai-sdk/openai-compatible",
       "name": "Databricks AI Gateway",
-      "whitelist": [
-        "databricks-claude-opus-5",
-        "databricks-claude-sonnet-5",
-        "databricks-claude-opus-4-8",
-        "databricks-claude-opus-4-7"
-      ],
-      "options": {
+      "package": "aisdk:@ai-sdk/openai-compatible",
+      "settings": {
         "baseURL": "https://adb-3304658076883586.6.azuredatabricks.net/serving-endpoints",
         "apiKey": "{env:DATABRICKS_TOKEN}",
         "timeout": false,
@@ -63,62 +52,53 @@
           "limit": {
             "context": 1000000,
             "output": 32000
-          },
-          "reasoning": true,
-          "temperature": true
+          }
         },
         "databricks-claude-sonnet-5": {
           "name": "Claude Sonnet 5 via Databricks",
           "limit": {
             "context": 200000,
             "output": 32000
-          },
-          "reasoning": true,
-          "temperature": true
+          }
         },
         "databricks-claude-opus-4-8": {
           "name": "Claude Opus 4.8 via Databricks",
           "limit": {
             "context": 1000000,
             "output": 32000
-          },
-          "reasoning": true,
-          "temperature": true
+          }
         },
         "databricks-claude-opus-4-7": {
           "name": "Claude Opus 4.7 via Databricks",
           "limit": {
             "context": 1000000,
             "output": 32000
-          },
-          "reasoning": true,
-          "temperature": true
+          }
         }
       }
     }
   },
-  "skills": {
-    "paths": [
-      "C:\\Users\\maja2811\\work\\bi-dlh-documentation\\skills\\dlh-platform",
-      "C:\\Users\\maja2811\\work\\bi-dlh-helper\\dlh_dmt_helper\\skills"
-    ]
-  },
+  "skills": [
+    "C:\\Users\\maja2811\\work\\bi-dlh-documentation\\skills\\dlh-platform",
+    "C:\\Users\\maja2811\\work\\bi-dlh-helper\\dlh_dmt_helper\\skills"
+  ],
   "mcp": {
-    "atlassian": {
-      "type": "remote",
-      "url": "https://mcp.atlassian.com/v1/mcp/authv2",
-      "enabled": true
+    "servers": {
+      "atlassian": {
+        "type": "remote",
+        "url": "https://mcp.atlassian.com/v1/mcp/authv2",
+        "disabled": false
+      }
     }
   },
-  "permission": {
-    "bash": {
-      "*": "allow",
-      "git commit": "ask",
-      "git commit *": "ask",
-      "git push": "ask",
-      "git push *": "ask",
-      "git -C * commit *": "ask",
-      "git -C * push *": "ask"
-    }
-  }
+  "permissions": [
+    { "action": "atlassian_*", "resource": "*", "effect": "deny" },
+    { "action": "shell", "resource": "*", "effect": "allow" },
+    { "action": "shell", "resource": "git commit", "effect": "ask" },
+    { "action": "shell", "resource": "git commit *", "effect": "ask" },
+    { "action": "shell", "resource": "git push", "effect": "ask" },
+    { "action": "shell", "resource": "git push *", "effect": "ask" },
+    { "action": "shell", "resource": "git -C * commit *", "effect": "ask" },
+    { "action": "shell", "resource": "git -C * push *", "effect": "ask" }
+  ]
 }
