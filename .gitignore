@@ -5,6 +5,8 @@ package-lock.json
 
 # Runtime state / logs
 *.log
+# v2 background service credential
+service.json
 .gsd-staging/
 skills/review-pr/.review-poll-state.json
 
