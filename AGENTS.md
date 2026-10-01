@@ -163,7 +163,7 @@ the skill and keep this file small. Ask the user before changing either.
 ## Setup Changes Are Versioned
 
 Any change to the local agent setup under `~/.config/opencode/` — `AGENTS.md`,
-`opencode.json`, `commands/`, `skills/`, `plugin/` — must end the task committed and
+`opencode.json`, `commands/`, `skills/`, `plugins/` — must end the task committed and
 pushed to `maja2811/mj-ai` (`main`). This describes the required end state; it does
 not authorize committing without asking. Never leave setup edits uncommitted.
 
