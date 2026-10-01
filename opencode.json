@@ -42,7 +42,6 @@
       "package": "aisdk:@ai-sdk/openai-compatible",
       "settings": {
         "baseURL": "https://adb-3304658076883586.6.azuredatabricks.net/serving-endpoints",
-        "apiKey": "{env:DATABRICKS_TOKEN}",
         "timeout": false,
         "headerTimeout": false
       },
