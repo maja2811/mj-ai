@@ -192,7 +192,7 @@
       "expectations": [
         "The workflow inspects scripts/pr-watcher.sh under the review-pr skill rather than the old bi-dlh-pr-reviewer repository.",
         "The workflow confirms the watcher launch template uses cmux/OpenCode with /review-pr and does not start the old FastAPI backend or /api/review/start.",
-        "The workflow confirms the default PR watcher model is azure-cognitive-services/gpt-5.5-1 unless PR_WATCHER_MODEL overrides it.",
+        "The workflow confirms the default PR watcher model is azure/gpt-6.1-sol unless PR_WATCHER_MODEL overrides it.",
         "The workflow confirms the watcher does not pass --variant to opencode TUI, because that flag is unsupported outside opencode run and causes OpenCode to print help instead of starting.",
         "The workflow explains that xhigh reasoning comes from the OpenCode model configuration for the default model, not from a watcher CLI --variant flag.",
         "The workflow confirms the default PR watcher working directory is the review-pr skill directory and the default state file is .pr-watcher-seen-prs under that directory, which is ~/.agents/skills/review-pr in the installed setup unless the corresponding PR_WATCHER_* environment variables override them."

@@ -16,7 +16,7 @@
     Seconds between polls. Default 60.
 
 .PARAMETER OpencodeModel
-    Model to pass to `opencode -m`. Default azure-cognitive-services/gpt-5.5-1.
+    Model to pass to `opencode -m`. Default azure/gpt-6.1-sol.
 
 .PARAMETER Once
     Run a single poll cycle and exit, instead of looping forever.
@@ -40,7 +40,7 @@
 
 param(
     [int]$PollInterval = 60,
-    [string]$OpencodeModel = "azure-cognitive-services/gpt-5.5-1",
+    [string]$OpencodeModel = "azure/gpt-6.1-sol",
     [switch]$Once,
     [switch]$Baseline
 )

@@ -419,7 +419,7 @@ powershell -ExecutionPolicy Bypass -File ~/.config/opencode/skills/review-pr/scr
 Defaults:
 
 - Poll interval: `60` seconds, override with `-PollInterval <seconds>`.
-- OpenCode model: `azure-cognitive-services/gpt-5.5-1`, override with `-OpencodeModel <model>`.
+- OpenCode model: `azure/gpt-6.1-sol`, override with `-OpencodeModel <model>`.
 - Do not add `--variant` to the watcher's launched command. `opencode run` supports `--variant`, but `opencode [project]`/TUI does not; passing it makes OpenCode print help instead of starting the review.
 - Single-cycle mode: pass `-Once` to run one poll cycle and exit instead of looping.
 - Baseline mode: pass `-Baseline` to seed existing pending PRs as already-seen without launching any sessions (see "Required first run" above).

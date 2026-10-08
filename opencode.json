@@ -27,14 +27,15 @@
   "providers": {
     "azure": {
       "settings": {
+        "resourceName": "oai-dlh-ctr-ctm-dev-sdc-001",
         "apiVersion": "2024-12-01-preview",
         "useDeploymentBasedUrls": true,
         "useCompletionUrls": true
       },
       "models": {
-        "gpt-5.5-1": {
-          "name": "gpt-5.5-1"
-        }
+        "gpt-6.1-sol": {},
+        "gpt-6-luna": {},
+        "claude-opus-5-5": {}
       }
     },
     "databricks": {
