@@ -12,8 +12,8 @@ description: Interact with Jira board — view, create, update, transition, and 
   - REST API credentials are fallback only and must never be preferred when MCP is available.
 
   To authenticate:
-    1. Restart OpenCode after enabling the `atlassian` MCP server.
-    2. Complete the Atlassian OAuth browser flow with the user's DSB account.
+    1. Enable the `atlassian` MCP server and follow MCP OAuth recovery below.
+    2. Give the user the live authorization link to sign in with their DSB account.
     3. Use REST API credentials only if MCP is unavailable or lacks a required operation.
 -->
 
@@ -87,7 +87,7 @@ Use the configured `atlassian` MCP server for Jira searches, issue reads, issue 
 
 Before any write operation, use MCP to verify the target project, issue types, required fields, users, and current issue state. Do not mix MCP and REST for one write unless MCP lacks the required operation.
 
-If the MCP server is unavailable, not authenticated, or lacks a required operation, use the documented Jira Cloud REST fallback. Never use the retired Server endpoint or Server PAT.
+If MCP needs authentication, follow MCP OAuth recovery below first. Use the documented Jira Cloud REST fallback only when MCP is unavailable or lacks a required operation and the user has configured fallback credentials. Never use the retired Server endpoint or Server PAT.
 
 > **IMPORTANT — Default behavior:** When this skill is loaded via `/jira` (or any trigger that doesn't include an explicit action like "show my tasks", "create a task", etc.), do **NOT** automatically fetch or display issues. Always wait for the user's next instruction first.
 
@@ -289,11 +289,19 @@ If the target status is unavailable, report available transitions and stop inste
 
 ## Error Handling
 
-- If MCP OAuth is unavailable or returns an authentication error, ask the user to restart OpenCode and complete the Atlassian authorization flow. Use API-token fallback only when the user explicitly configures it.
+- If MCP needs sign-in or returns an authentication error, follow MCP OAuth recovery below. Use API-token fallback only when the user explicitly configures it.
+- If MCP returns 403, especially `The app is not installed on this instance`, and the user can open the issue in their browser, try fresh OAuth consent before escalating to an admin. A connected MCP server and successful identity lookup do not prove that its Jira grant is sufficient. Do not diagnose an app-installation or project-permission failure from this message alone.
 - If REST fallback returns 401, the Cloud email or API token is missing/invalid. Tell the user to generate a token at https://id.atlassian.com/manage-profile/security/api-tokens, set `JIRA_CLOUD_EMAIL` and `JIRA_CLOUD_API_TOKEN`, and fully restart OpenCode.
 - If a 404 is received, the issue or project likely doesn't exist — ask the user to double-check
 - If a 400 is received, show the error message from Jira to help debug the request
 - Always check HTTP status codes and handle errors gracefully
+
+### MCP OAuth recovery (give the authorization link)
+
+1. Remind the user to reauthorize Atlassian MCP. Use `/mcps` → `atlassian` → sign in by default. If the user asks the agent to run the command, run `opencode.cmd mcp auth atlassian` in the background with no timeout (`background: true`, `timeout: 0`), so the browser flow has time to finish. Do not log out or clear credentials without approval.
+2. When running the command, read its current output once to retrieve the live `https://auth.atlassian.com/authorize?...` URL and give the user a clickable **Authorize Atlassian** link. Do this even if the command says it opened a browser; the user may see no popup. Copy the complete URL unchanged from this attempt. Do not invent, truncate, reuse, or save an old authorization URL in the skill.
+3. Ask the user to use their DSB account and select `dsbdk.atlassian.net` if prompted. Keep the command running while they authorize. Wait for the background completion notification rather than polling. If the command times out, do not report success; its callback may no longer work, so start a fresh attempt when needed and provide its new link.
+4. After the command confirms connection, retry the failed Jira read through the `jira` agent. Report whether it succeeds; command-level connection alone does not confirm issue access. Escalate to Atlassian/site admins if the same 403 persists after fresh consent, sharing the exact sanitized error and the checks performed.
 
 ## Execution Mode: Use Sub-Agent (Task Tool)
 
