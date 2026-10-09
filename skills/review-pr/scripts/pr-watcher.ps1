@@ -5,18 +5,20 @@
 .DESCRIPTION
     Polls GitHub (via scripts/poll_reviews.py) for open, non-draft PRs where
     the current user is a requested reviewer. For each new or updated PR
-    (detected by a changed head commit SHA), shows a Windows toast
-    notification (scripts/notify.ps1) and opens a new Windows Terminal tab
-    running opencode with the /review-pr command pre-filled.
+    (detected by a changed head commit SHA), starts an OpenCode V2 review
+    session in the background through the API (scripts/start_review_v2.py).
+    The windows-toasts plugin notifies when a review finishes or asks the
+    posting question; the watcher then opens a Windows Terminal tab attached
+    to that session.
 
     This is the Windows-native replacement for scripts/pr-watcher.sh, which
-    depends on cmux (Mac/Linux-only) and is not usable on this platform.
+    is macOS-only (bash, jq, alerter/osascript, review-tabs plugin).
 
 .PARAMETER PollInterval
     Seconds between polls. Default 60.
 
 .PARAMETER OpencodeModel
-    Model to pass to `opencode -m`. Default azure/gpt-6.1-sol.
+    Session model as provider/model#variant. Default azure/gpt-6.1-sol#high.
 
 .PARAMETER Once
     Run a single poll cycle and exit, instead of looping forever.
@@ -40,14 +42,15 @@
 
 param(
     [int]$PollInterval = 60,
-    [string]$OpencodeModel = "azure/gpt-6.1-sol",
+    [string]$OpencodeModel = "azure/gpt-6.1-sol#high",
     [switch]$Once,
     [switch]$Baseline
 )
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ReviewDir = Split-Path -Parent $ScriptDir
 $PollScript = Join-Path $ScriptDir "poll_reviews.py"
-$NotifyScript = Join-Path $ScriptDir "notify.ps1"
+$StartScript = Join-Path $ScriptDir "start_review_v2.py"
 
 function Write-Log {
     param([string]$Message)
@@ -57,7 +60,7 @@ function Write-Log {
 
 function Test-Prerequisites {
     $missing = @()
-    foreach ($tool in @("gh", "opencode", "wt")) {
+    foreach ($tool in @("gh", "opencode.cmd", "opencode2.cmd", "wt")) {
         if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
             $missing += $tool
         }
@@ -106,39 +109,52 @@ function Mark-Reviewed {
     & $py $PollScript --mark-reviewed $Url 2>$null | Out-Null
 }
 
-function Show-Notification {
-    param([string]$Title, [string]$Message)
-    try {
-        powershell -ExecutionPolicy Bypass -File $NotifyScript -Title $Title -Message $Message
-    } catch {
-        Write-Log "WARN: notification failed: $_"
-    }
-}
-
 function Start-ReviewSession {
-    param([string]$Url, [string]$Repo, [int]$Number, [string]$Title)
+    param([string]$Url, [string]$Repo, [int]$Number, [string]$Title, [string]$HeadSha)
 
     Write-Log "Launching review session: $Repo#$Number - $Title"
-    Show-Notification -Title "PR Review Started" -Message "$Repo#$Number`: $Title"
 
-    $prompt = "/review-pr $Url"
-    $command = "opencode -m $OpencodeModel --prompt `"$prompt`""
-
+    # The head SHA in the title gives each new commit its own stable session ID;
+    # retries for the same commit reuse the same session instead of duplicating it.
+    $sessionTitle = "PR Review: $Repo#$Number @$($HeadSha.Substring(0, [Math]::Min(7, $HeadSha.Length)))"
+    $py = Get-PythonExe
     try {
-        Start-Process wt.exe -ArgumentList @(
-            "new-tab",
-            "--title", "PR Review: $Repo#$Number",
-            "powershell", "-NoExit", "-Command", $command
-        )
+        $out = & $py $StartScript --directory $ReviewDir --title $sessionTitle --model $OpencodeModel --url $Url
+        if ($LASTEXITCODE -ne 0) { throw "start_review_v2.py exited with $LASTEXITCODE" }
+        $sessionId = ($out | ConvertFrom-Json).session_id
     } catch {
-        Write-Log "ERROR: failed to launch Windows Terminal tab for $Url`: $_"
+        Write-Log "ERROR: failed to start review session for $Url (will retry next poll): $_"
         return
     }
+
+    # The review runs in the OpenCode background service. The windows-toasts
+    # plugin notifies when it finishes or asks the posting question; the tab is
+    # opened then by Open-ReadyReviews.
+    $script:ActiveReviews[$sessionId] = $sessionTitle
 
     # Marking reviewed at launch time (not completion) prevents relaunching the
     # same head commit on the next poll. A new commit produces a new head SHA,
     # which poll_reviews.py will surface again as a fresh review-worthy PR.
     Mark-Reviewed -Url $Url
+}
+
+function Open-ReadyReviews {
+    $py = Get-PythonExe
+    foreach ($sessionId in @($script:ActiveReviews.Keys)) {
+        $status = & $py $StartScript --status $sessionId 2>$null
+        if ($LASTEXITCODE -ne 0 -or $status -eq "working") { continue }
+        $sessionTitle = $script:ActiveReviews[$sessionId]
+        $script:ActiveReviews.Remove($sessionId)
+        Write-Log "Review $status`: $sessionTitle ($sessionId)"
+        try {
+            Start-Process wt.exe -ArgumentList @(
+                "new-tab", "--title", "`"$sessionTitle`"", "-d", $ReviewDir,
+                "opencode.cmd", "--session", $sessionId
+            )
+        } catch {
+            Write-Log "WARN: failed to open Windows Terminal tab; attach manually with: opencode --session $sessionId"
+        }
+    }
 }
 
 function Invoke-PollCycle {
@@ -148,7 +164,7 @@ function Invoke-PollCycle {
         return
     }
     foreach ($pr in $prs) {
-        Start-ReviewSession -Url $pr.url -Repo $pr.repo -Number $pr.number -Title $pr.title
+        Start-ReviewSession -Url $pr.url -Repo $pr.repo -Number $pr.number -Title $pr.title -HeadSha $pr.head_sha
     }
 }
 
@@ -178,16 +194,23 @@ Write-Log "PR Watcher (Windows) starting"
 Write-Log "Poll interval: ${PollInterval}s"
 Write-Log "Model: $OpencodeModel"
 
+$ActiveReviews = @{}
+
 if ($Once) {
     Invoke-PollCycle
     return
 }
 
+$nextPoll = Get-Date
 while ($true) {
     try {
-        Invoke-PollCycle
+        if ((Get-Date) -ge $nextPoll) {
+            Invoke-PollCycle
+            $nextPoll = (Get-Date).AddSeconds($PollInterval)
+        }
+        Open-ReadyReviews
     } catch {
         Write-Log "ERROR: poll cycle failed: $_"
     }
-    Start-Sleep -Seconds $PollInterval
+    Start-Sleep -Seconds 15
 }

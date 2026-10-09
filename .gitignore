@@ -11,6 +11,7 @@ service.json
 plans/
 .gsd-staging/
 skills/review-pr/.review-poll-state.json
+skills/review-pr/pr-review-*.md
 
 # Browser auth state (genie)
 skills/genie/playwright/.auth/

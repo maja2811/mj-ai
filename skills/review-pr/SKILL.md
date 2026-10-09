@@ -1,7 +1,7 @@
 ---
 name: review-pr
 description: Review GitHub pull requests, branch URLs, or repository roots with the extracted in-house reviewer prompt using OpenCode-native toolcalling. Use this skill whenever the user asks to review a GitHub PR URL, branch URL, repo URL, generate a final markdown review, validate findings, inspect CI/discussion context, automatically watch for review-requested PRs, or optionally post a PR review back to GitHub. Do not start the old FastAPI reviewer backend; rely on OpenCode tools plus the bundled clone helpers.
-compatibility: Requires Python 3, GitHub CLI (`gh`) authenticated for the target repositories, and network access to GitHub. The optional PR watcher (Windows-native) also requires PowerShell, Windows Terminal (`wt.exe`), and `opencode`. Optional runtime validation may require Databricks CLI (`databricks`) plus a user-selected Databricks profile. Optional Azure DevOps CI inspection may require the `dlh-azure-devops-pipelines` skill and existing local Azure/GitHub authentication.
+compatibility: Requires Python 3, GitHub CLI (`gh`) authenticated for the target repositories, and network access to GitHub. The optional PR watcher (Windows-native) also requires PowerShell, Windows Terminal (`wt.exe`), and OpenCode V2 (`opencode`/`opencode2`). Optional runtime validation may require Databricks CLI (`databricks`) plus a user-selected Databricks profile. Optional Azure DevOps CI inspection may require the `dlh-azure-devops-pipelines` skill and existing local Azure/GitHub authentication.
 ---
 
 # Review PR
@@ -17,12 +17,14 @@ Bundled resources:
 - `scripts/clone_pr_head.py`: fetches PR metadata, discussion artifacts, review summaries, filtered diff, and a local clone of the exact PR head commit using GitHub's pull ref so merged PRs with deleted source branches still work.
 - `scripts/detect_followup_review.py`: deterministically detects the latest previous AI review from collected PR artifacts and writes follow-up context files.
 - `scripts/collect_branch_or_repo_review.py`: fetches branch-vs-default or full-repository review artifacts for GitHub `/tree/<branch>` and repo-root URLs.
+- `scripts/wait_for_ci.py`: waits until CI checks attached to the review head are no longer pending, queued, or in progress before review analysis starts.
 - `scripts/collect_azure_devops_evidence.py`: maps PR-head GitHub status/check evidence to Azure DevOps builds and saves selected CI logs.
 - `scripts/fetch_latest_checklist.py`: fetches the latest `checklist.md` from `DanskeStatsbaner/bi-dlh-documentation` and records its source ref.
 - `scripts/render_review_markdown.py`: renders the final markdown from a body-only review with the final review template.
 - `scripts/poll_reviews.py`: polls GitHub for open PRs where the current user is a requested reviewer, filtering out PRs already reviewed at the current head commit SHA.
-- `scripts/notify.ps1`: shows a native Windows toast notification (WinRT `ToastNotificationManager`).
-- `scripts/pr-watcher.ps1`: Windows-native watcher that loops `poll_reviews.py`, shows a toast via `notify.ps1` for each new/updated PR, and opens a new Windows Terminal tab running `opencode --prompt '/review-pr <url>'`.
+- `scripts/start_review_v2.py`: creates an OpenCode V2 review session through `opencode2 api` and submits the review prompt with this skill; also used by the renderer to read the session model.
+- `scripts/notify.ps1`: shows a native Windows toast notification (WinRT `ToastNotificationManager`); used by the global `windows-toasts` OpenCode plugin.
+- `scripts/pr-watcher.ps1`: Windows-native watcher that loops `poll_reviews.py`, starts a background review session per new/updated PR via `start_review_v2.py`, and opens a Windows Terminal tab attached to the session once the review is ready.
 - `scripts/clone_github_repo.py`: clones supporting GitHub repositories under the current review workspace.
 
 ## When To Use This Skill
@@ -64,6 +66,7 @@ Honor only options the user actually asked for.
 - Force initial review / ignore previous AI reviews: apply only when explicitly requested.
 - Force follow-up review: apply when the user explicitly asks for a follow-up, even if automatic detection is inconclusive; ask for or identify the previous review to compare against.
 - Posting mode: use the posting rules below.
+- CI waiting: mandatory for PR, branch, and repo reviews. Do not skip the pre-review CI wait unless the user explicitly changes the task from review generation to CI inspection, watcher troubleshooting, or editing this skill.
 
 Ignore backend-only options such as `model_key`, `max_tokens`, `reasoning_effort`, `thinking_level`, `enable_agent_tools`, `enable_validation`, and `enable_final_review` unless the user is explicitly asking about legacy backend behavior. OpenCode already controls model/tool execution for this session.
 
@@ -71,7 +74,7 @@ If the user explicitly says not to execute code or not to use Databricks, respec
 
 ### 3. Choose Paths And Collect Review Artifacts
 
-Create a workspace-local hidden review folder under `./.review-pr-tmp/`, preferably `./.review-pr-tmp/review-pr-<id>/`. Keep all artifacts, clones, supporting repos, and runtime validation evidence inside that workspace.
+Create a hidden review workspace under `~/.local/share/opencode/.review-pr-tmp/`, preferably `~/.local/share/opencode/.review-pr-tmp/review-pr-<id>/` (outside skill scan paths so clones are never loaded as skills). Keep all artifacts, clones, supporting repos, and runtime validation evidence inside that workspace. The helper scripts default here; only pass `--workspace` to override.
 
 Default exclusions:
 
@@ -82,7 +85,7 @@ Default exclusions:
 For PR URLs, run:
 
 ```bash
-python3 ~/.config/opencode/skills/review-pr/scripts/clone_pr_head.py \
+python ~/.config/opencode/skills/review-pr/scripts/clone_pr_head.py \
   --pr-url "<PR_URL>" \
   --workspace "<WORKSPACE>" \
   --exclude "uv.lock" \
@@ -92,7 +95,7 @@ python3 ~/.config/opencode/skills/review-pr/scripts/clone_pr_head.py \
 For branch URLs or repo root URLs, run:
 
 ```bash
-python3 ~/.config/opencode/skills/review-pr/scripts/collect_branch_or_repo_review.py \
+python ~/.config/opencode/skills/review-pr/scripts/collect_branch_or_repo_review.py \
   --target-url "<GITHUB_BRANCH_OR_REPO_URL>" \
   --workspace "<WORKSPACE>" \
   --exclude "uv.lock" \
@@ -140,7 +143,7 @@ Every review must use the latest official checklist from `DanskeStatsbaner/bi-dl
 Run after artifact collection:
 
 ```bash
-python3 ~/.config/opencode/skills/review-pr/scripts/fetch_latest_checklist.py \
+python ~/.config/opencode/skills/review-pr/scripts/fetch_latest_checklist.py \
   --workspace "<WORKSPACE>"
 ```
 
@@ -154,9 +157,31 @@ Rules:
 - Treat this checklist as mandatory review input.
 - If the checklist cannot be fetched, stop and report the GitHub/`gh` error instead of producing a checklist-free review.
 - If the user provided a separate checklist URL, fetch it as supplemental context, but keep the official latest checklist as the source of truth for checklist-backed findings.
+- Fetching the latest checklist does not establish that every process requirement still applies. Use the reviewer's checklist applicability rules to resolve corroborated documentation drift without waiving applicable safety or testing requirements.
 - The final rendered markdown must link to the checklist URL from `checklist-manifest.json`.
 
-### 5. Detect Initial Vs Follow-Up Review
+### 5. Wait For CI Completion Before Reviewing
+
+Every review must wait for CI to leave pending, queued, requested, running, or in-progress states before loading the reviewer prompt, analyzing changed files, or drafting findings. Failed, cancelled, skipped, neutral, or successful checks are terminal and may be reviewed after the wait gate records them; pending CI is not terminal.
+
+Run after artifact collection and checklist fetch:
+
+```bash
+python ~/.config/opencode/skills/review-pr/scripts/wait_for_ci.py \
+  --manifest-path "<WORKSPACE>/pr-manifest.json"
+```
+
+Rules:
+
+- Treat this as a mandatory pre-review gate for PR URLs, branch URLs, and repo root reviews.
+- The helper saves `<WORKSPACE>/ci-wait/status-check-rollup.json` and `<WORKSPACE>/ci-wait/ci-wait-manifest.json`; read them before reviewing and use them as the freshest CI status evidence.
+- If CI finishes with failures or cancellations, continue the review using the completed CI evidence. Do not stop merely because CI is red.
+- If the helper reports no checks after its no-check grace period, continue the review but note in the evidence ledger that no CI checks were visible for the review head.
+- If the helper times out because checks are still pending, do not review or draft findings. Report the pending check names from `ci-wait-manifest.json` and ask whether to keep waiting, retry with a longer timeout, or stop.
+- If the PR or branch head changes while waiting, rerun artifact collection, fetch the checklist again if needed, and restart the CI wait for the new head before reviewing.
+- If the user explicitly asks only to inspect or troubleshoot CI, do that task instead of producing a review.
+
+### 6. Detect Initial Vs Follow-Up Review
 
 Support the same two review modes as the old backend.
 
@@ -166,7 +191,7 @@ Default detection:
 - For PR reviews, run the deterministic helper unless forced initial mode is requested:
 
 ```bash
-python3 ~/.config/opencode/skills/review-pr/scripts/detect_followup_review.py \
+python ~/.config/opencode/skills/review-pr/scripts/detect_followup_review.py \
   --manifest-path "<WORKSPACE>/pr-manifest.json"
 ```
 
@@ -186,10 +211,13 @@ Follow-up context:
 - If the previous review has a commit SHA, use the helper-created incremental diff from that SHA to the current PR head SHA and use it to assess drift and resolution status.
 - If the previous review lacks a commit SHA, use the current full manifest `diff_path` and make the internal evidence ledger clear that the comparison is full-diff based.
 - In follow-up mode, focus on whether previous findings were addressed, whether the implementation introduced new issues, and whether author responses change the review outcome. Do not re-review the entire PR as if no previous review exists.
+- Apply the extracted prompt's follow-up closure rules: keep the original acceptance criteria stable, distinguish missing independent validation from an evidenced defect, and check whether new failures follow prior review advice. Close satisfied findings or explicitly withdraw unsupported demands; keep genuine regressions and failed required CI gates separate.
 
-### 6. Load The Extracted Reviewer Prompt
+### 7. Load The Extracted Reviewer Prompt
 
 Read `~/.config/opencode/skills/review-pr/references/opencode-reviewer-prompt.md` before reviewing. Treat it as the reviewer contract for severity labels, output structure, citation rules, CI/CD assumptions, and OpenCode-native tool use.
+
+Load `ponytail` when available and apply it as a complexity lens (delete, reuse, stdlib/native first, YAGNI, shrink) alongside the normal correctness review. The bundled prompt's **Simplicity Gate (Ponytail)** is required even when that companion skill is unavailable. Keep this skill's headings, severity labels, evidence standards, and posting rules instead of Ponytail's standalone one-line report or line-count score.
 
 Then layer in:
 
@@ -201,7 +229,7 @@ Then layer in:
 
 The extracted prompt is the base instruction surface. This skill file adds workflow mechanics and evidence rules around it.
 
-### 7. Review With OpenCode Tools
+### 8. Review With OpenCode Tools
 
 Do not draft from memory. Build and save an evidence ledger while reviewing.
 
@@ -209,7 +237,7 @@ Evidence precedence:
 
 1. PR metadata, description, and discussion artifacts, when reviewing a PR
 2. latest official checklist from `bi-dlh-documentation`
-3. exact CI evidence, if available
+3. exact CI evidence from `<WORKSPACE>/ci-wait/` and Azure DevOps artifacts, when present
 4. the manifest `diff_path` artifact
 5. changed files and nearby context in `clone_path`
 6. repo-local docs, tests, config, and CI definitions
@@ -217,12 +245,14 @@ Evidence precedence:
 8. authoritative web/docs sources fetched with CRW when external behavior matters
 9. Databricks runtime evidence, if safely collected
 
+This order guides evidence collection, not automatic authority in a conflict. Apply the prompt's shared author-explanation and checklist applicability rules in initial and follow-up reviews. Record disputed process requirements and their current applicability evidence in the evidence ledger; a pending documentation PR is corroboration, not authority by itself.
+
 Use OpenCode-native tools instead of backend tool names:
 
 - Use `Read` for the manifest `diff_path`, metadata JSON, review comments, the changed file list artifact path from `changed_files_path`, and specific cloned files.
 - Use `Grep` for symbol, import, path, and config searches inside the cloned repo or supporting repos.
 - Use `Glob` for file discovery.
-- Use `bash` for GitHub CLI and git commands that inspect repository state, history, checks, or exact revisions.
+- Use `shell` for GitHub CLI and git commands that inspect repository state, history, checks, or exact revisions.
 - Use CRW web tools for official docs and external references.
 - Use `scripts/clone_github_repo.py` when a supporting source-of-truth repo needs local inspection.
 - If a fresh GitHub CLI/API, CRW, or other web fetch substitutes for a supporting clone, save the raw response or a focused excerpt under `<WORKSPACE>/supporting-evidence/` before using it to keep or reject a candidate finding. Include enough metadata in the saved file to identify the URL, command, ref/SHA if known, and fetch time.
@@ -231,24 +261,27 @@ Missed-issues sweep:
 
 - Review changed files directly, not just PR prose or previous comments.
 - Check correctness, security, performance, maintainability, tests, CI/CD behavior, deployment behavior, data migration risk, project conventions, and applicable latest-checklist requirements.
+- Apply the simplicity gate to the submitted code: trace callers and existing capabilities, identify unnecessary complexity with concrete cost, and verify the smallest adequate replacement. Material overengineering is a merge-blocking `MAJOR` finding, not an optional suggestion merely because tests pass.
 - Treat PR description and comments as evidence about intent and rollout constraints when present, but verify important claims against code, CI, docs, or runtime behavior.
 - When a candidate finding depends on existing persisted state from earlier code, cite the base or previous behavior that can create that state and include a concrete scenario.
 - If a candidate finding says production data can be deleted, dropped, truncated, overwritten, omitted from a required reload, or otherwise lost, start from `CRITICAL`. Downgrade to `MAJOR` only when the evidence shows the data is temporary, recoverable, non-production, or not consumer-visible, and state that rationale in the review.
 - Every candidate finding must end as `kept` or `rejected` in your working notes before writing the final review.
-- Before rendering, save those working notes to `<WORKSPACE>/evidence-ledger.md` or `<WORKSPACE>/evidence-ledger.json`. Include each candidate finding, considered severity, final `kept` or `rejected` status, concrete evidence paths/lines, validation notes, and the rejection reason when rejected. This file is for auditability only; do not mention it in the final review.
+- Before rendering, save those working notes to `<WORKSPACE>/evidence-ledger.md` or `<WORKSPACE>/evidence-ledger.json`. Include each candidate finding, considered severity, final `kept` or `rejected` status, concrete evidence paths/lines, validation notes, and the rejection reason when rejected. For complexity findings, include the current requirement, concrete cost, and simpler equivalent; for proposed fixes, record why the chosen remediation is sufficient without extra machinery. This file is for auditability only; do not mention it in the final review.
 
-### 8. CI And Azure DevOps Evidence
+### 9. CI And Azure DevOps Evidence
 
 Prefer exact CI evidence over generic status labels.
 
+- CI completion must already have been waited for by [Wait For CI Completion Before Reviewing](#5-wait-for-ci-completion-before-reviewing). Do not start the code review from a pending `statusCheckRollup`.
 - Start from GitHub metadata for the exact PR head SHA: `statusCheckRollup`, checks, statuses, details URLs, target URLs, check-run `external_id` values, and any build IDs in links.
+- Prefer `<WORKSPACE>/ci-wait/status-check-rollup.json` as the latest GitHub status/check rollup because it is captured after the wait gate.
 - Treat PR-head-attached status/check evidence as authoritative for which Azure DevOps builds matter. Map Azure DevOps links or `external_id` values to build IDs and pipeline IDs before pulling logs.
 - Do not inspect or cite similarly named Azure DevOps pipelines just because they exist in the same repo or folder. Ignore cleanup, permissions, scheduled, or unrelated pipelines unless they are attached to the PR head, enforce a required PR policy, or the user explicitly asks for them.
 - If the PR uses Azure DevOps pipelines and exact logs are needed, load `dlh-azure-devops-pipelines` and inspect the relevant attached build, stage, and task output rather than guessing from a red/green status.
 - Prefer the bundled helper for deterministic Azure DevOps evidence collection:
 
 ```bash
-python3 ~/.config/opencode/skills/review-pr/scripts/collect_azure_devops_evidence.py \
+python ~/.config/opencode/skills/review-pr/scripts/collect_azure_devops_evidence.py \
   --manifest-path "<WORKSPACE>/pr-manifest.json"
 ```
 
@@ -264,7 +297,7 @@ python3 ~/.config/opencode/skills/review-pr/scripts/collect_azure_devops_evidenc
 - Do not invent CI failures from local assumptions.
 - Do not ignore concrete CI failures just because they came from Azure DevOps rather than GitHub Actions.
 
-### 9. Databricks-Backed Runtime Validation
+### 10. Databricks-Backed Runtime Validation
 
 When a claim depends on actual Databricks runtime behavior and static evidence is not enough, prefer Databricks-backed execution over local Spark.
 
@@ -284,7 +317,7 @@ Rules:
 - Delete temporary Databricks workspace paths after capturing evidence.
 - If Databricks execution cannot be performed safely, keep the claim narrower and state the blocker.
 
-### 10. Package And Platform Source-Of-Truth Repos
+### 11. Package And Platform Source-Of-Truth Repos
 
 If a finding depends on package behavior, deployment wiring, platform conventions, runtime configuration, or shared CI/CD behavior, inspect the source-of-truth repo before concluding.
 
@@ -306,12 +339,19 @@ Important DLH platform false-positive guardrails:
 - If CI/CD rewrites a supported repo-local path to `/Deployment/<repo>/<branch>/...`, reject findings that claim the job is developer-workspace-bound solely because of the checked-in path.
 - Do not flag CI/CD-guaranteed environment variables such as `DATABRICKS_ENVIRONMENT`, `KEY_VAULT_NAME`, `CATALOG_NAME`, `PROJECT_NAME`, and storage path variables as missing just because local ad hoc execution would need setup.
 - For managed Databricks jobs and notebooks, prefer concrete platform evidence over generic local-runtime concerns.
+- Apply the extracted prompt's **Unity Catalog metadata** policy: missing, invalid, or outdated required metadata for new development or changes to existing solutions is `MAJOR` and requires `REQUEST_CHANGES` for an open PR unless explicitly waived/downgraded under the existing policy. Check affected data assets and applicable schema metadata even when metadata files are absent from the diff; exclude unrelated untouched legacy assets and optional metadata. A tracking issue or generator failure alone is not a waiver.
 - When reviewing Unity Catalog `metadata.yml`, verify the helper-managed YAML shape before recommending exact tag syntax. Current `dlh-dmt-helper` injects table-level domain as the domain value itself with an empty value, for example `Product: ""`, not `domain: Product`; inspect a current-workspace clone of `bi-dlh-helper` under `<WORKSPACE>/reference-repos/` or the repo-pinned helper source when uncertain.
 - If a metadata finding includes an example YAML snippet, match the repo-local existing format and helper implementation. Do not invent tag keys, tag nesting, or metadata fields that the helper will not emit or consume.
-- When a `metadata.yml` finding concerns `columns: []` or missing column documentation, compare the actual projected output columns from the changed table or view against `metadata.yml` `columns[*].name`. Do not mark the finding fully addressed unless the metadata covers the relevant exposed columns, or the review explicitly accepts a narrower documented subset with a rationale.
-- In follow-up mode, if a metadata fix documents only some exposed columns, mark the previous metadata finding `⚠️` or add a remaining `MINOR` metadata issue instead of approving it as fully resolved.
+- When a `metadata.yml` finding concerns `columns: []` or missing column documentation, compare actual projected output columns against `metadata.yml` `columns[*].name` and verify populated descriptions. Follow the prompt's closure rules: partial required coverage remains `⚠️` and merge-blocking, not a remaining non-blocking `MINOR`; explain any reassessment of an earlier `MINOR` finding under the current policy.
 
-### 11. Produce The Final Markdown Review
+### 12. Validate And Produce The Final Markdown Review
+
+Before rendering:
+
+- Re-check retained findings against the diff, current source, CI/runtime evidence, and PR discussion.
+- For blocking findings (`CRITICAL` or `MAJOR`), use one read-only subagent to search for counterevidence. Give it the target/head, artifact paths, and candidate claims; require complete call paths, supported/partially supported/false verdicts, file/line evidence, and severity justification. If delegation is unavailable or disallowed, disclose the limitation and perform the counterevidence pass yourself.
+- Verify the subagent's evidence yourself, resolve disagreements, and record final dispositions in the evidence ledger. Remove unsupported claims and update the recommendation when blockers fall away. A subagent's verdict is not evidence by itself.
+- Apply the reviewer prompt's simplicity gate to proposed fixes and recommendations. Follow its initial/follow-up format, severity, citation, and output rules.
 
 The LLM must write only the review body. It must not generate the disclaimer, checklist sentence, or model line. Those are rendered deterministically from `references/final-review-template.md`.
 
@@ -324,51 +364,34 @@ Write the body-only review to:
 Then render the final markdown file with the deterministic template:
 
 ```bash
-python3 ~/.config/opencode/skills/review-pr/scripts/render_review_markdown.py \
+python ~/.config/opencode/skills/review-pr/scripts/render_review_markdown.py \
   --body-path "<WORKSPACE>/review-body.md" \
   --output-path "<FINAL_MARKDOWN_PATH>" \
   --checklist-manifest-path "<WORKSPACE>/checklist-manifest.json" \
-  --model "GPT-5.5"
+  --session-id "<CURRENT_REVIEW_SESSION_ID>"
 ```
 
-- Use the initial or follow-up structure from `references/opencode-reviewer-prompt.md`, based on the detected review mode.
-- Use only these severity labels when findings exist: `CRITICAL`, `MAJOR`, `MINOR`, `SUGGESTION`.
-- Preserve exact headings and order.
-- Do not write `AI-Generated Review Notice`, `Used model`, or the checklist preamble in `review-body.md`.
-- The rendered final markdown must start with the template preamble and `**Used model:** GPT-5.5`.
-- Keep the Summary no longer than 120 words.
-- Sort findings by severity: `CRITICAL` > `MAJOR` > `MINOR` > `SUGGESTION`.
-- Use Markdown links for code locations with stable refs, preferably the review head SHA from `pr-manifest.json`.
-- Do not use unsupported labels such as `HIGH`, `MEDIUM`, `LOW`, or `INFO`.
-- Do not mention temp workspace paths, helper scripts, tool names, internal notes, or that a correction pass happened.
-- If no significant findings remain, write `No significant findings` in the Findings section and make the recommendation consistent.
-- If example remediation details are unknown, keep examples generic instead of inventing APIs, parameters, or exact replacement code.
-- Runtime-sensitive wording must reflect what was actually executed or verified.
-- In follow-up mode, keep previous findings in their original order and use status values exactly as defined in the follow-up structure.
-- In follow-up mode, add new findings under `### New Issues` only when they are concrete and evidenced; do not duplicate already-resolved previous findings as new issues.
-- In follow-up mode, assess each previous finding against the exact condition described in the previous review. If the old condition is fixed but the fix creates a related different failure mode, mark the old finding `✅` and add the different failure under `### New Issues`.
+- Pass the current review session ID from the watcher prompt or session context. The renderer reads its model and reasoning variant from OpenCode and writes a provider-free label, for example `**Used model:** GPT 6.1 Sol (high)` for `azure/gpt-6.1-sol#high`. It formats GPT model IDs as readable names and puts the reasoning variant in parentheses, omitting the parentheses when none is set. Use the session that performed the review, not a parent or unrelated session. If the model was changed during the review, this identifies the selected model at rendering time.
+- For manual runs where the session ID is not known, or for rendering outside OpenCode, pass `--model "<ACTUAL_MODEL_AND_REASONING_LEVEL>"` explicitly, for example `--model "GPT 6.1 Sol (high)"`. There is no hardcoded model fallback; an unavailable session or missing model must be resolved before rendering.
 
 Final coherence pass:
 
 - Read the saved markdown once after the last edit.
 - Verify that `review-body.md` does not contain `AI-Generated Review Notice` or `**Used model:**`.
 - Prefer `Read` or `Grep` for absence checks. If using `rg` in Bash, remember that zero matches returns exit code 1; use a command that explicitly treats zero forbidden matches as the expected success and inspect the captured output.
-- Verify that the rendered final markdown contains exactly one AI-generated review notice and exactly one `**Used model:** GPT-5.5` line.
+- Verify that the rendered final markdown contains exactly one AI-generated review notice and exactly one `**Used model:**` line matching the review session's model and reasoning variant.
 - Verify that the rendered final markdown links to the checklist URL from `checklist-manifest.json`.
-- Perform an independent validation pass against the saved artifacts before finalizing: re-check each kept finding against the manifest `diff_path`, current file lines, CI/runtime evidence, and PR discussion when present.
-- Verify that `<WORKSPACE>/evidence-ledger.md` or `<WORKSPACE>/evidence-ledger.json` exists and that every final finding is marked `kept` there, while every plausible rejected candidate has a rejection rationale.
-- Verify that every rejected candidate is absent, every retained finding is actionable, and CI-only findings are not misrepresented as changed-code defects.
-- In follow-up mode, verify previous-finding statuses against the previous review commit and the current head before publishing the status table.
-- In follow-up mode, verify that each previous-finding status answers only whether the exact previous condition remains; related regressions introduced by the fix belong under `### New Issues`.
+- Confirm the evidence ledger exists, every kept finding appears in the review, and rejected candidates have rejection rationales and are absent from the review.
+- In follow-up mode, verify statuses against the previous review's exact conditions and current head; record closure evidence or withdrawal reasons in the evidence ledger and remove withdrawn demands from recommendations. Report related regressions separately under `### New Issues`, including any connection to prior review advice.
 - Confirm that summary, findings, examples, recommendations, and overall recommendation agree.
-- Confirm every kept finding appears in the final markdown and every rejected candidate is absent.
 - Confirm the final assistant message agrees with the file on whether findings were added, removed, or retained.
+- Follow [Optional GitHub Posting](#optional-github-posting) to show the rendered review and obtain approval before posting.
 
 ## Optional GitHub Posting
 
-After writing the final markdown review for a PR URL, report the saved file path and proactively offer to post it back to GitHub in normal assistant text. The completion message must include an explicit offer such as `I can post this as a formal request-changes review if you want.` when the recommendation is `REQUEST_CHANGES`, or the matching approval/comment wording for other outcomes. Do not use the `question` tool as the default posting prompt; dismissed interactive prompts can leave the run without a final completion message. Do not post automatically. Branch/repo reviews have no PR posting target, so just report the saved file path unless the user gives a specific posting destination.
+After writing the final markdown review for a PR URL, report the saved file path and show the rendered final review content in the assistant message before asking about posting. The user should see exactly what would be posted to GitHub before being asked to approve the post. Then always use the `question` tool to offer posting options. Put the default formal review action first: request changes for `REQUEST_CHANGES`, approve for `APPROVE`, or comment when the recommendation is neither. Include a `Do not post` option. Do not post automatically. Branch/repo reviews have no PR posting target, so just report the saved file path unless the user gives a specific posting destination.
 
-If the user explicitly asks for an interactive choice, the `question` tool may be used, but the workflow must still be considered complete if the question is dismissed or unanswered.
+If the posting question is dismissed or unanswered, treat that as `do not post`, leave the markdown on disk, mark the workflow complete, and report the saved file path in the final response.
 
 Default posting behavior:
 
@@ -376,7 +399,7 @@ Default posting behavior:
 - If the final review recommends `REQUEST_CHANGES`, default to request changes.
 - If the final review recommends `APPROVE`, default to approval.
 - Use a plain PR comment only when the user explicitly asks for a comment or the recommendation is neither approval nor request changes.
-- Post the rendered final markdown file, not the body-only draft. The posted body must include the deterministic template preamble and `**Used model:** GPT-5.5`.
+- Post the rendered final markdown file, not the body-only draft. The posted body must include the deterministic template preamble and the session-derived `**Used model:**` line.
 
 Posting commands:
 
@@ -396,19 +419,17 @@ Safety rules:
 
 ## Optional PR Watcher
 
-Use `scripts/pr-watcher.ps1` when the user wants review sessions to start automatically for new GitHub PRs requesting their review. This is the Windows-native watcher: it polls GitHub via `scripts/poll_reviews.py` (`gh search prs --review-requested=@me`, filtered to open, non-draft PRs not yet reviewed at the current head commit SHA), shows a Windows toast notification via `scripts/notify.ps1` for each new/updated PR, and opens a new Windows Terminal tab running `opencode --prompt '/review-pr <PR_URL>'`.
+Use `scripts/pr-watcher.ps1` when the user wants review sessions to start automatically for new GitHub PRs requesting their review. This is the Windows-native watcher: it polls GitHub via `scripts/poll_reviews.py` (`gh search prs --review-requested=@me`, filtered to open, non-draft PRs not yet reviewed at the current head commit SHA) and starts an OpenCode V2 review session in the background for each new/updated PR through `scripts/start_review_v2.py`. Nothing opens while the review runs. The global `windows-toasts` plugin (`~/.config/opencode/plugins/windows-toasts`) shows a toast when the session finishes, fails, or asks the posting question; the watcher checks active sessions every 15 seconds and then opens a Windows Terminal tab attached to the session (`opencode.cmd --session <sessionID>`).
 
-There is no `cmux`/bash watcher bundled with this install — that variant depends on `cmux`, which is Mac/Linux-only. Do not suggest it on Windows.
+Reattach to any review with `opencode --session <sessionID>`. The global `opencode.json` allows `external_directory` access to `~/.local/share/opencode/.review-pr-tmp/*` so reviews do not prompt for their own workspace. The macOS `pr-watcher.sh` and its review-tabs plugin are not bundled in this install; do not suggest them on Windows.
 
-For verification or troubleshooting requests, inspect `scripts/pr-watcher.ps1` and `scripts/poll_reviews.py` directly and answer from the scripts. Do not start a persistent watcher unless the user asks to start it.
+For verification or troubleshooting requests, inspect `scripts/pr-watcher.ps1`, `scripts/poll_reviews.py`, and `scripts/start_review_v2.py` directly and answer from the scripts. Do not start a persistent watcher unless the user asks to start it.
 
 **Required first run:** before starting the watcher for the first time, or any time `.review-poll-state.json` is deleted/reset, run baseline seeding so existing pending-review PRs are recorded as already seen instead of all being launched at once:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File ~/.config/opencode/skills/review-pr/scripts/pr-watcher.ps1 -Baseline
 ```
-
-This marks every currently pending review PR as reviewed at its current head SHA, without opening any terminal tabs or sessions. Only genuinely new PRs, or PRs updated with a new commit after baseline, will trigger a review session once the watcher starts.
 
 Default command (after baseline seeding):
 
@@ -419,13 +440,14 @@ powershell -ExecutionPolicy Bypass -File ~/.config/opencode/skills/review-pr/scr
 Defaults:
 
 - Poll interval: `60` seconds, override with `-PollInterval <seconds>`.
-- OpenCode model: `azure/gpt-6.1-sol`, override with `-OpencodeModel <model>`.
-- Do not add `--variant` to the watcher's launched command. `opencode run` supports `--variant`, but `opencode [project]`/TUI does not; passing it makes OpenCode print help instead of starting the review.
-- Single-cycle mode: pass `-Once` to run one poll cycle and exit instead of looping.
-- Baseline mode: pass `-Baseline` to seed existing pending PRs as already-seen without launching any sessions (see "Required first run" above).
-- State file (dedup by head SHA): `~/.config/opencode/skills/review-pr/.review-poll-state.json`, managed by `poll_reviews.py`; a PR is marked reviewed (launch time) immediately after its review session is opened, so it will not relaunch until a new commit changes the head SHA.
-- Notification: `scripts/notify.ps1 -Title <title> -Message <message>` shows a native WinRT toast. If toast notifications are not appearing (for example due to notification settings or focus-assist), check Windows notification settings for PowerShell/Windows Terminal.
-- Requires `wt.exe` (Windows Terminal) on PATH to open review sessions in a new tab; if it's missing, install Windows Terminal or adapt `Start-ReviewSession` in `pr-watcher.ps1` to use a different terminal launcher.
+- OpenCode V2 model: `azure/gpt-6.1-sol#high`, override with `-OpencodeModel <provider/model#variant>`. The variant is set on the session through the API, not through a TUI flag.
+- `scripts/start_review_v2.py` creates the session through `opencode2 api post /api/session` (title `PR Review: <repo>#<number> @<short-sha>`, model, skill directory as location, watcher metadata), then submits the prompt with the `review-pr` skill through `/api/session/<sessionID>/prompt`, including the session ID for `render_review_markdown.py --session-id`. Session and message IDs are derived from directory, title, and URL, so a retry for the same head commit reuses the same session and a new commit gets a new session.
+- Single-cycle mode: pass `-Once` to run one poll cycle and exit instead of looping. Sessions still run and toast when ready, but no tab is opened; attach with `opencode --session <sessionID>`.
+- Baseline mode: pass `-Baseline` to seed existing pending PRs as already-seen without launching any sessions.
+- State file (dedup by head SHA): `~/.config/opencode/skills/review-pr/.review-poll-state.json`, managed by `poll_reviews.py`. A PR is marked reviewed only after its session was started, so a failed start is retried on the next poll.
+- Review artifacts go to `~/.local/share/opencode/.review-pr-tmp` (override with `PR_WATCHER_REVIEW_TMP_DIR`). The Windows watcher does not clean them up; delete old `review-pr-*` folders manually when needed.
+- Notification: the `windows-toasts` plugin calls `scripts/notify.ps1`. Active sessions are tracked in memory, so after a watcher restart reviews still toast but their tab must be opened manually. If toasts do not appear, check Windows notification settings for PowerShell.
+- Requires `gh`, `python`, `opencode.cmd`/`opencode2.cmd` (npm shims; the `.ps1` shims may be blocked by execution policy), and `wt.exe` (Windows Terminal) on PATH.
 
 ## Failure Handling
 
@@ -433,6 +455,7 @@ Defaults:
 - If GitHub access fails, do not guess from partial artifacts.
 - If the latest official checklist cannot be fetched, stop and report the failure instead of producing a checklist-free review.
 - If exact CI logs are needed but unavailable, state the narrow CI evidence gap and keep affected claims limited.
+- If the CI wait helper times out on pending checks, stop without producing the review and report the pending check names plus the wait manifest path.
 - For GitHub checks, use fields supported by the local `gh` version, such as `name,state,startedAt,completedAt,link,bucket,description`; do not assume `gh pr checks --json conclusion` is available.
 - For Azure DevOps build logs, prefer `az devops invoke --area build --resource timeline` and `az devops invoke --area build --resource logs` with explicit organization/project/build IDs. Do not rely on nonexistent `az pipelines build logs list` commands.
 - If Databricks validation is needed but cannot be done safely, state the blocker and keep the claim narrower.

@@ -96,6 +96,7 @@
     { "action": "shell", "resource": "git push", "effect": "ask" },
     { "action": "shell", "resource": "git push *", "effect": "ask" },
     { "action": "shell", "resource": "git -C * commit *", "effect": "ask" },
-    { "action": "shell", "resource": "git -C * push *", "effect": "ask" }
+    { "action": "shell", "resource": "git -C * push *", "effect": "ask" },
+    { "action": "external_directory", "resource": "~/.local/share/opencode/.review-pr-tmp/*", "effect": "allow" }
   ]
 }

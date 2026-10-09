@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_MODEL = "GPT-5.5"
+from start_review_v2 import api
 
 
 def eprint(message: str) -> None:
@@ -40,10 +40,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--checklist-url",
         help="Checklist URL override; defaults to checklist manifest html_url",
     )
-    parser.add_argument(
+    model = parser.add_mutually_exclusive_group(required=True)
+    model.add_argument(
+        "--session-id",
+        help="OpenCode review session ID; read its model and reasoning variant from the API",
+    )
+    model.add_argument(
         "--model",
-        default=DEFAULT_MODEL,
-        help=f"Model display name for rendered markdown (default: {DEFAULT_MODEL})",
+        help="Explicit model label for reviews rendered without an OpenCode session",
     )
     parser.add_argument("--json", action="store_true", help="Print render manifest JSON")
     return parser
@@ -86,6 +90,21 @@ def validate_body(body: str) -> None:
 
 def main() -> int:
     args = build_parser().parse_args()
+    model = args.model
+    if args.session_id:
+        if not re.fullmatch(r"ses_[A-Za-z0-9]+", args.session_id):
+            raise ValueError("Invalid OpenCode session ID")
+        selected = api("get", f"/api/session/{args.session_id}")["data"]["model"]
+        provider, name, variant = selected.get("providerID"), selected.get("id"), selected.get("variant")
+        if not all(isinstance(value, str) and value.strip() for value in (provider, name)):
+            raise ValueError("Review session has no explicit provider/model")
+        if variant is not None and (not isinstance(variant, str) or not variant.strip()):
+            raise ValueError("Review session has an invalid reasoning variant")
+        model = "GPT " + name[4:].replace("-", " ").title() if name.startswith("gpt-") else name
+        if variant:
+            model += f" ({variant})"
+    if not model or not model.strip():
+        raise ValueError("Model label must not be empty")
     body_path = Path(args.body_path).expanduser().resolve()
     output_path = Path(args.output_path).expanduser().resolve()
     template_path = Path(args.template_path).expanduser().resolve()
@@ -99,7 +118,7 @@ def main() -> int:
         raise RuntimeError("Checklist URL is required for final review rendering.")
 
     rendered = (
-        template.replace("{{MODEL}}", args.model)
+        template.replace("{{MODEL}}", model)
         .replace("{{CHECKLIST_URL}}", str(checklist_url))
         .replace("{{BODY}}", body.strip())
         .rstrip()
@@ -113,7 +132,7 @@ def main() -> int:
         "output_path": str(output_path),
         "template_path": str(template_path),
         "checklist_url": str(checklist_url),
-        "model": args.model,
+        "model": model,
     }
     if args.json:
         print(json.dumps(manifest, indent=2))

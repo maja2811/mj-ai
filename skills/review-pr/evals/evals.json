@@ -11,11 +11,12 @@
         "The run collects PR metadata, discussion, changed-files JSON, filtered diff, and a local PR-head clone with scripts/clone_pr_head.py or equivalent GitHub CLI evidence.",
         "The workflow fetches the latest official checklist from DanskeStatsbaner/bi-dlh-documentation before reviewing and uses it as mandatory review input.",
         "The run loads and follows references/opencode-reviewer-prompt.md as the reviewer contract.",
+        "The workflow loads ponytail when available and applies the bundled Simplicity Gate to both submitted code and proposed fixes while retaining the review-pr output format.",
         "The final markdown uses only these severities if findings exist: CRITICAL, MAJOR, MINOR, SUGGESTION.",
         "The final markdown does not contain alternative severity labels such as HIGH, MEDIUM, LOW, or INFO.",
         "The LLM-produced review body does not include the AI-generated review notice or Used model line.",
         "The final markdown is rendered from references/final-review-template.md and includes the standard AI-generated review notice preamble.",
-        "The final markdown contains exactly one Used model line set to GPT-5.5.",
+        "The final markdown contains exactly one Used model line matching the review session's model and reasoning variant.",
         "The final markdown has the extracted prompt structure: Summary, Findings, Example Solutions, Additional Recommendations, Overall Recommendation.",
         "The workflow explicitly considers PR description and discussion context during the review.",
         "The final markdown does not mention helper scripts, temp workspaces, OpenCode tool names, backend migration, or internal validation steps."
@@ -52,6 +53,11 @@
         "The workflow includes an explicit missed-issues sweep across changed hunks, nearby code, PR discussion, CI evidence, tests, config, and project conventions.",
         "Any newly added finding is concrete and evidenced by the diff, cloned code, CI artifacts, runtime evidence, docs, or a combination of them.",
         "Any newly added finding uses one of the allowed severity labels: CRITICAL, MAJOR, MINOR, SUGGESTION.",
+        "An overengineering finding identifies the current requirement, unnecessary code or dependency, concrete cost, and an evidenced simpler replacement; one implementation or a high line count alone is not sufficient.",
+        "If material unjustified complexity is found in an open PR, it is MAJOR and leads to REQUEST_CHANGES even when tests pass, unless an explicit permitted waiver is evidenced.",
+        "Suggested fixes reuse existing helpers, standard-library or native features where adequate, and do not introduce speculative frameworks, dependencies, configuration, retries, or broad testing programs.",
+        "The simplicity pass preserves required security checks, boundary validation, data-loss protections, accessibility, tests, and evidenced operational behavior.",
+        "When there is no present need for additional advice, the review does not manufacture Additional Recommendations to fill the section.",
         "If a version recommendation is made for a dependency, it is grounded in package-repo version evidence rather than guesswork.",
         "When a runtime or correctness claim depends on dependency behavior, conclusions are checked against the package source repo rather than guessed from local code.",
         "When Databricks runtime behavior materially affects a finding and safe execution is feasible, the workflow prefers Databricks-backed validation over local Spark inference.",
@@ -101,6 +107,13 @@
         "The final markdown uses follow-up headings: Executive Summary, Previous Findings Status, New Issues, Author Communication, Recommendation.",
         "The Previous Findings Status table preserves the previous findings order and uses only the defined status values: ✅, ⚠️, ❌, 🔄.",
         "New problems introduced since the previous review appear under New Issues rather than being mixed into the previous-finding status table.",
+        "The follow-up accepts a simpler fix that satisfies the original requirement instead of requiring the previous example's architecture; unnecessary earlier recommendations are explicitly withdrawn.",
+        "The follow-up keeps the original acceptance criteria stable and closes satisfied findings; additional requirements need a separately evidenced defect or an applicable mandatory checklist requirement, not reviewer uncertainty alone. Unsupported previous findings are marked ✅ with an explicit withdrawal reason, not presented as author-fixed defects.",
+        "Missing independent execution is not treated as a defect by itself; documented intent and author-reported observations are distinguished from independently verified facts. Runtime evidence is requested only for a concrete unresolved correctness or safety risk that static evidence cannot settle, or an explicit testing/sign-off requirement.",
+        "For grain/key findings, the declared grain and key are checked against the transformation and constraints; a different business grain is not imposed solely because a source identifier may span entities.",
+        "When a new failure follows prior review advice, incompatible or unnecessary advice is explicitly corrected or withdrawn, while the resolved original condition and the evidenced regression remain separate. Closure rules do not waive failed required CI or mandatory safety/testing requirements.",
+        "The evidence ledger records each original acceptance condition, closure evidence or withdrawal reason, and any connection between a regression and prior advice; withdrawn demands are removed from the recommendation.",
+        "If a fix resolves the original defect but introduces material overengineering, the original condition is marked addressed and the new complexity is reported separately with evidence.",
         "The recommendation reflects both previous-finding resolution and any new issues."
       ]
     },
@@ -165,7 +178,7 @@
         "The body-only draft does not contain **AI-Generated Review Notice:** or **Used model:**.",
         "The saved markdown starts with **AI-Generated Review Notice:** from the deterministic template.",
         "The notice states that the review was generated by an AI assistant and may contain errors or oversights.",
-        "The notice includes the latest official checklist link, the minor-finding deferral note, and a Used model line set to GPT-5.5.",
+        "The notice includes the latest official checklist link, the minor-finding deferral note, and a Used model line matching the review session's model and reasoning variant.",
         "The posted GitHub body includes the same disclosure even if a separate posting-body copy is needed.",
         "The workflow still never posts without explicit confirmation in the current run."
       ]
@@ -181,21 +194,50 @@
         "If the latest official checklist cannot be fetched, the workflow stops instead of producing a checklist-free review.",
         "The official checklist is mandatory source-of-truth context; any user-provided checklist is supplemental only.",
         "The workflow writes review-body.md without disclaimer or model metadata, then runs scripts/render_review_markdown.py or equivalent deterministic rendering.",
-        "The final markdown includes the checklist URL from checklist-manifest.json and **Used model:** GPT-5.5."
+        "The final markdown includes the checklist URL from checklist-manifest.json and exactly one **Used model:** line derived via --session-id from the current review session, including its reasoning variant when set."
       ]
     },
     {
       "id": "eval-013",
-      "prompt": "Verify the automatic PR watcher setup without starting it. Inspect the bundled review-pr skill file scripts/pr-watcher.sh and report: the default model and PR_WATCHER_MODEL override, the default working directory and PR_WATCHER_REVIEW_CWD override, the default state file and PR_WATCHER_STATE_FILE override, the exact cmux/opencode /review-pr launch template, whether it starts the old FastAPI backend or /api/review/start, and why the TUI launch must not include --variant.",
-      "expected_output": "The skill should verify the bundled PR watcher script from the review-pr skill and confirm it defaults to the current OpenCode model, whose OpenCode config uses xhigh reasoning effort.",
+      "prompt": "Verify the automatic PR watcher setup without starting it. Inspect the bundled review-pr skill files scripts/pr-watcher.ps1, scripts/poll_reviews.py and scripts/start_review_v2.py and report: the default model and -OpencodeModel override, the review session working directory, the state file, how the OpenCode V2 session and prompt are launched, how the terminal tab is opened, whether it starts the old FastAPI backend or /api/review/start, and how the reasoning variant is passed.",
+      "expected_output": "The skill should verify the bundled PR watcher defaults to azure/gpt-6.1-sol#high and starts tagged OpenCode V2 sessions through the API, including the high reasoning variant in the session model.",
       "files": [],
       "expectations": [
-        "The workflow inspects scripts/pr-watcher.sh under the review-pr skill rather than the old bi-dlh-pr-reviewer repository.",
-        "The workflow confirms the watcher launch template uses cmux/OpenCode with /review-pr and does not start the old FastAPI backend or /api/review/start.",
-        "The workflow confirms the default PR watcher model is azure/gpt-6.1-sol unless PR_WATCHER_MODEL overrides it.",
-        "The workflow confirms the watcher does not pass --variant to opencode TUI, because that flag is unsupported outside opencode run and causes OpenCode to print help instead of starting.",
-        "The workflow explains that xhigh reasoning comes from the OpenCode model configuration for the default model, not from a watcher CLI --variant flag.",
-        "The workflow confirms the default PR watcher working directory is the review-pr skill directory and the default state file is .pr-watcher-seen-prs under that directory, which is ~/.agents/skills/review-pr in the installed setup unless the corresponding PR_WATCHER_* environment variables override them."
+        "The workflow inspects scripts/pr-watcher.ps1 under the review-pr skill rather than the old bi-dlh-pr-reviewer repository or the macOS pr-watcher.sh.",
+        "The workflow confirms scripts/start_review_v2.py creates a tagged session through /api/session, then submits a prompt with the review-pr skill through /api/session/<sessionID>/prompt; it does not start the old FastAPI backend or /api/review/start.",
+        "The workflow confirms the default PR watcher model is azure/gpt-6.1-sol#high unless -OpencodeModel overrides it.",
+        "The workflow confirms the review runs in the background, the windows-toasts plugin notifies when it is ready, and only then does the watcher open a Windows Terminal tab attached with opencode.cmd --session <sessionID>.",
+        "The workflow explains that high reasoning is passed as variant: high in the V2 session model, not through a TUI --variant flag.",
+        "The workflow confirms the review session directory is the review-pr skill directory (~/.config/opencode/skills/review-pr) and the state file is .review-poll-state.json under that directory, deduplicated by PR head SHA."
+      ]
+    },
+    {
+      "id": "eval-014",
+      "prompt": "Write a body-only initial review for a frozen snapshot of DanskeStatsbaner/bi-dlh-operations-bussag PR #3. Use these supplied facts as the complete fixture; do not fetch live state or post to GitHub. Only the Databricks runtime config changes. Required CI build 1404317 passed and no compatibility defect is evidenced. The latest published runtime guidance still asks for a Foundation Jira upgrade case. Daniel, the process owner, explicitly confirms Foundation no longer needs a case, and the author agrees. Open bi-dlh-documentation PR #129 at d7277923a17faf51f78aeb69ebeff2b27acbf0fd independently matches that explanation by removing Foundation/Jira ownership and assigning upgrades to project teams through self-service; it is not merged. No current requirement for a substitute ticket or DEV validation record is evidenced. The config-only change does not trigger automatic CD. A manual main-branch run defaults to deploy_to_dev=true, deploy_to_uat=false, deploy_to_prd=false. No library/workload execution evidence is supplied. An approval was previously given and no new blocking defect is established. Apply the review-pr reviewer contract and save the review body and candidate dispositions locally.",
+      "expected_output": "The initial review treats the corroborated Foundation-ticket requirement as documentation drift, recommends APPROVE with no significant findings, and gives DEV-first rollout advice without claiming tests ran or inventing replacement obligations.",
+      "files": [],
+      "expectations": [
+        "The initial review considers the process-owner and author explanations in good faith and rejects the obsolete Foundation-ticket compliance candidate with a documentation-drift rationale.",
+        "The pending documentation PR is identified as open corroboration alongside the process-owner confirmation, not as merged or independently authoritative policy.",
+        "The review does not demand a Foundation case, substitute self-service ticket, new approval, or mandatory DEV validation record.",
+        "The review recommends a main-branch DEV-only manual rollout and library/workload validation as additional rollout advice rather than a compliance finding or proof of completed tests.",
+        "The review does not claim automatic deployment, default UAT/PRD selection, or verified runtime compatibility merely because CI passed.",
+        "Findings says No significant findings, the recommendation remains APPROVE, and the local candidate dispositions record the obsolete requirement and corroborating evidence.",
+        "The run does not fetch live state, post a GitHub review, or modify the existing approval."
+      ]
+    },
+    {
+      "id": "eval-015",
+      "prompt": "Write a body-only follow-up review using this complete fictional fixture; do not fetch live state or post to GitHub. The previous review requested a Foundation runtime-upgrade case and passing required DEV smoke CI. The author says the case is no longer needed and CI should not block. An open documentation PR proposes removing both requirements, but no process-owner confirmation or implemented process change corroborates that proposal. Current maintainer guidance explicitly requires the DEV smoke CI gate before merge, and the exact PR-head check is completed and failed with a reproducible dependency import error caused by the changed runtime. No waiver is supplied and the PR is open. Save the review body and candidate dispositions locally. Apply the review-pr contract, distinguishing the uncertain administrative requirement from the evidenced failed required gate.",
+      "expected_output": "The follow-up does not treat an uncorroborated pending documentation proposal as settled policy and retains the concrete required-CI failure without claiming the author's administrative explanation is disproved.",
+      "files": [],
+      "expectations": [
+        "The review does not declare the Foundation-case requirement obsolete solely because the author and an open documentation PR propose removing it; it states current applicability is unresolved rather than a proven author violation.",
+        "The review distinguishes author-reported process claims, pending documentation, current maintainer policy, and independently evidenced CI failure.",
+        "The failed required DEV smoke gate remains unresolved and the recommendation is REQUEST_CHANGES because the open PR has a completed failed required gate and no waiver.",
+        "The review does not waive mandatory CI/testing, downgrade the import failure to optional rollout advice, or infer tests passed from the proposed administrative change.",
+        "The follow-up preserves the previous findings order, assesses each original condition separately, and records applicability uncertainty and the CI disposition locally.",
+        "The run does not fetch live state or post to GitHub."
       ]
     }
   ]

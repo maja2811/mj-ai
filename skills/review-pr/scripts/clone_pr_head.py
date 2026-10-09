@@ -35,7 +35,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--workspace",
         help=(
             "Workspace directory; defaults to a hidden local workspace "
-            "under ./.review-pr-tmp"
+            "under $PR_WATCHER_REVIEW_TMP_DIR or "
+            "~/.local/share/opencode/.review-pr-tmp (outside skill scan path)"
         ),
     )
     parser.add_argument(
@@ -62,7 +63,10 @@ def ensure_workspace(path_value: str | None) -> Path:
         path.mkdir(parents=True, exist_ok=True)
         return path
 
-    root = Path.cwd().resolve() / ".review-pr-tmp"
+    root = Path(
+        os.environ.get("PR_WATCHER_REVIEW_TMP_DIR", "")
+        or str(Path.home() / ".local/share/opencode/.review-pr-tmp")
+    ).expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
 
     while True:
@@ -274,13 +278,22 @@ def run_clone_pr_ref(
     local_ref = f"refs/remotes/origin/pr/{pr_number}"
     fetch_command = [
         "git",
+        "-c",
+        "credential.helper=!gh auth git-credential",
         "fetch",
         "--depth",
         "1",
         "origin",
         f"{fetch_ref}:{local_ref}",
     ]
-    checkout_command = ["git", "checkout", "--detach", head_sha]
+    checkout_command = [
+        "git",
+        "-c",
+        "credential.helper=!gh auth git-credential",
+        "checkout",
+        "--detach",
+        head_sha,
+    ]
 
     try:
         try:

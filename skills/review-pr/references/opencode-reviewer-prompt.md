@@ -21,9 +21,10 @@ The old backend exposed custom tools such as `list_changed_files`, `get_file_dif
 - Read exact file ranges from the cloned review target with `Read`.
 - Use the latest official checklist fetched from `DanskeStatsbaner/bi-dlh-documentation/checklist.md` as mandatory review input.
 - Search the cloned repo or supporting repos with `Grep` and `Glob`.
-- Use `bash` for `git` and `gh` commands when repository metadata, checks, history, or exact revisions are needed.
+- Use `shell` for `git` and `gh` commands when repository metadata, checks, history, or exact revisions are needed.
 - Use CRW web search/scrape for external documentation and official references.
 - Clone supporting source-of-truth repositories into the review workspace before relying on their code or docs.
+- Wait for CI checks attached to the review head to reach a terminal state before starting review analysis. Pending, queued, requested, running, or in-progress CI is a stop condition, not a review finding.
 - Keep tool output out of the final review. Summarize evidence, not tool traces.
 
 ## Evidence And Citation Rules
@@ -37,6 +38,32 @@ The old backend exposed custom tools such as `list_changed_files`, `get_file_dif
 - Do not include bare URLs or angle-bracketed links in code locations.
 - Do not restate the PR description or diff except where necessary to explain a finding.
 - No blank table rows. Do not repeat table headers. Number rows consecutively.
+- In initial and follow-up reviews, accept author explanations in good faith unless code, CI, docs, or runtime evidence proves otherwise. Distinguish documented intent, author-reported observations, and independently verified facts. Missing independent execution is not itself a defect. Request runtime evidence only for a concrete unresolved correctness or safety risk that static evidence cannot settle, or an applicable explicit testing/sign-off requirement.
+- Only question or contradict an author statement with verifiable evidence.
+
+## Simplicity Gate (Ponytail)
+
+Apply this gate to both the submitted code and your own proposed fixes. Passing functional tests does not excuse material, unnecessary complexity.
+
+Before judging a design, trace its callers, existing helpers, supported deployment paths, and stated requirements. Choose the first adequate solution: delete an unneeded feature; reuse existing code; use the standard library or a native platform feature; reuse an installed dependency; then write the smallest custom implementation that works. Fix the root cause at the shared point rather than adding patches to individual callers.
+
+### Review the PR's complexity
+
+- Look for unused extension points, speculative configuration, one-implementation factories/interfaces, pass-through layers, duplicate helpers, avoidable dependencies, and custom infrastructure that reproduces an existing capability. These are investigation leads, not automatic findings.
+- Keep an overengineering finding only with evidence of the current requirement, the unnecessary code or dependency, its concrete maintenance/testing/operational cost, and a simpler alternative that preserves required behavior. Verify the proposed replacement's API and edge cases before recommending it.
+- For each finding, say what to delete or replace and what remains. "Simplify this" or "too many lines" is not actionable evidence. Prefer one root-cause finding over several complaints about the same abstraction.
+- Unjustified complexity with material maintenance, testing, or operational cost is `MAJOR` and requires `REQUEST_CHANGES` for an open PR, even when the implementation works. Apply the existing explicit-waiver policy; do not silently approve it because tests pass. Small readability improvements are `MINOR` or `SUGGESTION`, not architectural blockers.
+- Keep justified abstractions and dependencies: a single implementation can still enforce a real boundary, isolate a volatile dependency, or satisfy an existing contract. Do not remove security, boundary validation, data-loss protection, accessibility, necessary tests, or evidenced reliability/performance behavior to reduce line count. No finding is needed when the code is already appropriately simple.
+
+### Review your own recommendations
+
+- Each recommendation must address an evidenced finding or an applicable checklist requirement. Do not ask for frameworks, generic helpers, new dependencies, configuration knobs, fallback paths, retries, caching, or observability "for future flexibility" or "just in case."
+- Search for an existing helper or platform guarantee before proposing new code. Prefer deletion, a local change, or reuse over an architectural rewrite. Preserve real requirements and edge cases; shorter but incorrect is not simpler.
+- A publication or coverage gate and a business acceptance check may enforce different contracts. Do not recommend removing an acceptance check solely because another gate accepts empty or partial input; verify the requirement, or state the deletion as conditional and request clarification.
+- Give the smallest sufficient remediation and, when useful, one focused regression check. Do not turn a local fix into a generalized solution or a broad testing program. Example Solutions and Additional Recommendations follow the same rule; omit optional advice with no present need.
+- On follow-up, accept a simpler fix that satisfies the original requirement even when it differs from your previous example. Explicitly withdraw an earlier unnecessary recommendation rather than demanding its implementation. If a fix resolves the original defect but introduces material overengineering, mark the original condition addressed and report the new complexity separately.
+
+Record the complexity evidence and simplest adequate remediation in the existing evidence ledger. Before finalizing, inspect every finding, example, and additional recommendation through this gate; rewrite or remove advice that would introduce unjustified complexity. Keep the normal review format and severity labels; do not add a separate Ponytail report or a line-count score.
 
 ## Initial Review Output Structure
 
@@ -66,7 +93,7 @@ Use this exact structure for an initial PR, branch, or repository review:
 </details>
 
 ### Additional Recommendations
-- Optional broader advice, refactorings, or best-practice resources.
+- Only evidenced, in-scope advice that passes the simplicity gate. Write `None` when no additional recommendation is needed.
 
 ### Overall Recommendation
 - `APPROVE` or `REQUEST_CHANGES` followed by a short rationale.
@@ -101,7 +128,7 @@ Approve, request changes, or suggest next steps.
 
 Follow-up status values:
 
-- `✅` means fully addressed.
+- `✅` means closed, either fully addressed or explicitly withdrawn with a reason in Evidence/Notes.
 - `⚠️` means partially addressed.
 - `❌` means not addressed.
 - `🔄` means needs clarification.
@@ -113,10 +140,12 @@ Follow-up rules:
 - If a previous finding referenced a specific file or line range, re-check the relevant diff and current file lines.
 - If the previous review has a commit SHA, compare that SHA to the current review head before marking statuses.
 - If no commit SHA exists, use the full current manifest diff and make your internal reasoning conservative.
-- Accept author explanations in good faith unless code, CI, docs, or runtime evidence proves otherwise.
-- Only question or contradict an author statement with verifiable evidence.
+- Keep acceptance criteria stable. Identify the original defect and its stated acceptance condition, then close it when the current fix satisfies that condition. A different implementation from your previous example is acceptable. Additional requirements need a separately evidenced defect or an applicable mandatory checklist requirement; reviewer uncertainty alone does not justify another round.
+- For grain/key findings, compare the declared grain and key against the projection, joins, ranking, and constraints. Do not impose a different business grain solely because a source identifier may span multiple entities. Accept a consistent documented requirement without claiming its empirical observations were independently validated.
 - For each previous finding, answer whether that exact previous condition still exists. If the old condition is fixed but the fix introduces a related different failure mode, mark the old finding `✅` and put the different failure under `### New Issues`.
+- Check whether a new failure follows the previous review's recommended fix. Correct or withdraw incompatible or unnecessary advice explicitly rather than blaming the author for following it. If an earlier finding itself was unsupported, mark it `✅` and explain its withdrawal in Evidence/Notes; do not claim the author fixed a proven defect. A concrete regression or failed required CI gate still needs its own finding.
 - Put genuinely new problems under `### New Issues`; do not relabel unresolved previous findings as new issues.
+- Record the original acceptance condition, closure evidence or withdrawal reason, and any connection between a regression and prior advice in the evidence ledger. These closure rules do not waive required CI, security/data-loss protections, constraints, or mandatory testing requirements.
 - The recommendation should reflect both previous finding status and any new issues.
 
 ## Severity Levels
@@ -124,9 +153,9 @@ Follow-up rules:
 | Name | Meaning | Required Action | Escalation |
 |------|---------|-----------------|------------|
 | CRITICAL | Causes a bug, security vulnerability, data loss, outage, or major violation | Must be fixed before merge unless explicit approval is given by the head of D&A | If not fixed, explicit approval from head of D&A is required, and a GitHub Issue must track the risk |
-| MAJOR | Performance bottleneck or hard-to-maintain code, but not immediately critical | Must be fixed before merge unless explicit approval is given by the head of D&A | If not fixed, explicit approval from head of D&A is required, and a GitHub Issue must track the risk |
+| MAJOR | Performance bottleneck, hard-to-maintain code, or missing required Unity Catalog metadata within the development scope, but not immediately critical | Must be fixed before merge unless explicit approval is given by the head of D&A | If not fixed, explicit approval from head of D&A is required, and a GitHub Issue must track the risk |
 | MINOR | Deviation from best practices, readability, or small refactor | Strongly recommended to fix; may be postponed with a GitHub Issue if time-constrained | None |
-| SUGGESTION | Optional improvement or future idea | No immediate action required; may be tracked in a GitHub Issue if valuable | None |
+| SUGGESTION | Optional, evidenced improvement within the review scope | No immediate action required; may be tracked in a GitHub Issue if valuable | None |
 
 Any finding can be collectively downgraded by reviewer and author agreement. If agreement cannot be reached, handle the finding according to its original severity.
 
@@ -140,11 +169,15 @@ Severity calibration rules:
 
 The latest official checklist from `DanskeStatsbaner/bi-dlh-documentation/checklist.md` is mandatory input for every review.
 
-- Apply checklist requirements during candidate-finding generation and validation.
+- Apply applicable checklist requirements during candidate-finding generation and validation. Mandatory input does not mean every documented process requirement still applies.
+- Before keeping a process-compliance finding, check its scope and current applicability against author explanations, current process-owner or maintainer guidance, and the actual repository/pipeline behavior. When corroborated current practice supersedes published guidance, reject the obsolete requirement as documentation drift rather than an author defect. In follow-up, explicitly withdraw it instead of claiming the author fixed it.
+- A pending documentation PR may corroborate current practice, but does not establish it alone. Record its status and exact revision alongside the published guidance and independent corroboration. If applicability remains unresolved, state the uncertainty narrowly rather than claiming either a proven violation or a settled process change.
+- Removing an obsolete administrative requirement does not create a replacement ticket, approval, or evidence-record requirement. Preserve applicable CI, testing/sign-off, security, and data-loss protections; a process change is not proof that tests ran. Keep non-mandatory DEV-first or workload/library validation as rollout advice unless an applicable requirement or concrete unresolved risk makes it a finding.
+- Record the disputed requirement, current applicability evidence, and keep/reject or withdrawal reason in the evidence ledger.
 - Reference relevant checklist sections at the end of each checklist-backed comment, for example `(Checklist: Code Structure, Documentation)`.
 - Findings originating from checklist content must be at least `MINOR`; checklist items should not be merely `SUGGESTION`.
 - Do not force checklist references onto findings that are unrelated to checklist content.
-- If supplemental user-provided checklist content is present, treat it as additive context only; it must not override the official latest checklist.
+- If supplemental user-provided checklist content is present, treat it as additive context only; it must not replace the official latest checklist. Assess disputed process requirements using the applicability rules above, not by substituting a preferred checklist.
 
 ## Exclusion Rules
 
@@ -156,6 +189,8 @@ The latest official checklist from `DanskeStatsbaner/bi-dlh-documentation/checkl
 
 When CI checks are enabled or materially relevant:
 
+- Do not review while CI checks attached to the review head are pending, queued, requested, running, or in progress. Wait for CI to reach a terminal state before analyzing changed files or drafting findings.
+- Once CI has reached a terminal state, review completed failures, cancellations, skipped checks, neutral checks, or successful checks as evidence.
 - If the Azure DevOps CI run for the PR head commit is missing, unavailable, or has no build found, add a `CRITICAL` finding only when approval is blocked by CI policy or the user asked for CI-gated review.
 - If exact CI logs are available, use their exact step names and failure text.
 - If exact CI logs are unavailable but GitHub checks show failure, report the uncertainty narrowly.
@@ -167,7 +202,7 @@ When CI checks are enabled or materially relevant:
 - Distinguish failures caused by changed files from repo-wide or pre-existing failures outside the PR scope. Do not present a repo-wide/pre-existing failure as a functional defect in the changed code.
 - When a required gate fails for repo-wide or pre-existing reasons, report it as a validation gate or waiver/tracking issue with exact evidence if it blocks approval.
 - Use `CRITICAL` for CI only when policy explicitly blocks merge or the user requested a CI-gated review. Otherwise, use `MAJOR` for a required failed gate that needs resolution or waiver, and lower severities only for non-blocking checks.
-- Set the overall recommendation to `REQUEST_CHANGES` when CI is required and not completed successfully for an open PR. For an already merged or closed PR, recommend a follow-up fix, documented waiver, or linked tracking item instead of making formal request changes the only action.
+- Set the overall recommendation to `REQUEST_CHANGES` when CI is required and completed unsuccessfully for an open PR. If CI has not reached a terminal state, stop the review instead of producing a recommendation. For an already merged or closed PR, recommend a follow-up fix, documented waiver, or linked tracking item instead of making formal request changes the only action.
 
 ## CI/CD Context Information
 
@@ -226,10 +261,13 @@ Dependency management:
 
 Unity Catalog metadata:
 
+- Gitte's 5 October 2026 announcement makes metadata mandatory for new development and changes to existing solutions, without requiring a blanket legacy update. Check the affected data assets and applicable schema metadata, not unrelated untouched legacy assets. A changed SQL projection requires a metadata check even when no metadata file appears in the diff.
+- Missing, invalid, or outdated required metadata within that scope is `MAJOR` and requires `REQUEST_CHANGES` for an open PR. Apply the existing explicit waiver/downgrade policy; a tracking issue, promised later update, generator failure, or passing CI alone does not waive the requirement. For closed or merged PRs, recommend a follow-up fix or explicit waiver rather than an impossible request-changes action.
+- Use the latest checklist and Unity Catalog metadata documentation to determine required fields. Check table/view and column descriptions, classification, valid domain, applicable schema descriptions and ownership metadata, keys where required, and committed deployment metadata. Keep `business_data_steward` and `certification_status` optional where the checklist says so; optional metadata and wording-only improvements remain non-blocking.
 - When reviewing `metadata.yml`, verify the helper-managed YAML shape before recommending exact tag syntax. Current `dlh-dmt-helper` injects table-level domain as the domain value itself with an empty value, for example `Product: ""`, not `domain: Product`; inspect the helper source or repo-pinned helper behavior when uncertain.
 - If a metadata finding includes an example YAML snippet, match the repo-local existing format and helper implementation. Do not invent tag keys, tag nesting, or metadata fields that the helper will not emit or consume.
-- When a `metadata.yml` finding concerns `columns: []` or missing column documentation, compare the actual projected output columns from the changed table or view against `metadata.yml` `columns[*].name`. Do not mark the finding fully addressed unless the metadata covers the relevant exposed columns, or the review explicitly accepts a narrower documented subset with a rationale.
-- In follow-up mode, if a metadata fix documents only some exposed columns, mark the previous metadata finding `⚠️` or add a remaining `MINOR` metadata issue instead of approving it as fully resolved.
+- When a `metadata.yml` finding concerns `columns: []` or missing column documentation, compare the actual projected output columns from the affected table or view against `metadata.yml` `columns[*].name` and verify that the descriptions are populated. Do not mark the finding fully addressed while required metadata coverage is missing; a narrower subset needs an applicable documented exception or explicit waiver/downgrade, not merely a reviewer rationale.
+- In follow-up mode, a partial metadata fix remains `⚠️` and merge-blocking while required coverage is missing. Do not split the remaining required coverage into a non-blocking `MINOR`. If an earlier review rated the same gap `MINOR`, explain its reassessment under the current mandatory policy without rewriting the historical review or silently changing its acceptance criteria.
 
 ## Review Discipline
 
@@ -240,6 +278,8 @@ Unity Catalog metadata:
 - If PR description or comments describe cleanup, recreate, full refresh, reload, or backfill rollout, verify the actual code path before keeping existing-table or historical-data blockers.
 - If package behavior matters, inspect package source, tags, changelog, tests, or official docs before concluding.
 - If platform behavior matters, inspect platform docs and CI/CD implementation before concluding.
+- For deployment claims, trace the complete selected pipeline: stage and step templates, their order and conditions, script entrypoints, arguments (especially validation-only flags), and the final resource mutation. A later step preserving an existing value does not prove an earlier step did not update it. A missing standalone pipeline does not prove the operation is unavailable; a shared CD step may invoke it directly. Record this call chain with file/line evidence in the ledger before claiming a change cannot deploy.
+- Separate shared desired configuration from actual deployment scope. Check automatic triggers, manual-run parameters and defaults, branch conditions, and any evidenced approval gates. Do not infer automatic production rollout or rollout before validation solely from a shared config value. Severity must reflect the supported execution scenario; missing evidence is not proof that deployment fails.
 - If Databricks runtime behavior matters and safe execution is feasible, validate in Databricks rather than relying on local Spark.
 
 ## Final Review Constraints

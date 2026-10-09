@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -38,7 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--workspace",
-        help="Workspace directory; defaults to a hidden local workspace under ./.review-pr-tmp",
+        help="Workspace directory; defaults to a hidden local workspace under $PR_WATCHER_REVIEW_TMP_DIR or ~/.local/share/opencode/.review-pr-tmp (outside skill scan path)",
     )
     parser.add_argument(
         "--manifest-path",
@@ -65,7 +66,10 @@ def ensure_workspace(path_value: str | None) -> Path:
         path.mkdir(parents=True, exist_ok=True)
         return path
 
-    root = Path.cwd().resolve() / ".review-pr-tmp"
+    root = Path(
+        os.environ.get("PR_WATCHER_REVIEW_TMP_DIR", "")
+        or str(Path.home() / ".local/share/opencode/.review-pr-tmp")
+    ).expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
     while True:
         path = root / f"review-target-{uuid.uuid4().hex[:8]}"

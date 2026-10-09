@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -37,7 +38,8 @@ def build_parser() -> argparse.ArgumentParser:
             "Review workspace directory. If a path ending in reference-repos "
             "or reference-repos/<name> is supplied, it is normalized to avoid "
             "nested reference-repos directories. Defaults to a hidden local "
-            "workspace under ./.review-pr-tmp"
+            "workspace under $PR_WATCHER_REVIEW_TMP_DIR or "
+            "~/.local/share/opencode/.review-pr-tmp (outside skill scan path)"
         ),
     )
     parser.add_argument(
@@ -61,7 +63,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def default_workspace() -> Path:
-    root = Path.cwd().resolve() / ".review-pr-tmp"
+    root = Path(
+        os.environ.get("PR_WATCHER_REVIEW_TMP_DIR", "")
+        or str(Path.home() / ".local/share/opencode/.review-pr-tmp")
+    ).expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
 
     while True:
