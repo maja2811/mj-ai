@@ -27,10 +27,7 @@
   "providers": {
     "azure": {
       "settings": {
-        "resourceName": "oai-dlh-ctr-ctm-dev-sdc-001",
-        "apiVersion": "2024-12-01-preview",
-        "useDeploymentBasedUrls": true,
-        "useCompletionUrls": true
+        "resourceName": "oai-dlh-ctr-ctm-dev-sdc-001"
       },
       "models": {
         "gpt-6.1-sol": {},
