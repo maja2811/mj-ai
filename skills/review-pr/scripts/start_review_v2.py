@@ -54,8 +54,12 @@ def start_review(*, directory, title, model, url):
 
 def review_status(session_id):
     session = api("get", f"/api/session/{session_id}")["data"]
-    if session["time"].get("idle"):
-        return "done" if session.get("outcome") == "succeeded" else session.get("outcome", "interrupted")
+    # time.idle keeps its old value after a session resumes (e.g. when a background
+    # subagent finishes), so trust the newest message and running children instead.
+    newest = api("get", f"/api/session/{session_id}/message?limit=1")["data"]
+    children = api("get", f"/api/session?parentID={session_id}")["data"]
+    if newest and newest[0].get("type") == "idle" and all(c["time"].get("idle") for c in children):
+        return "done" if session.get("outcome") == "succeeded" else session.get("outcome") or "interrupted"
     if api("get", f"/api/session/{session_id}/permission")["data"]:
         return "blocked"
     if api("get", f"/api/session/{session_id}/form")["data"]:
