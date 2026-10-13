@@ -425,17 +425,42 @@ Reattach to any review with `opencode --session <sessionID>`. The global `openco
 
 For verification or troubleshooting requests, inspect `scripts/pr-watcher.ps1`, `scripts/poll_reviews.py`, and `scripts/start_review_v2.py` directly and answer from the scripts. Do not start a persistent watcher unless the user asks to start it.
 
-**Required first run:** before starting the watcher for the first time, or any time `.review-poll-state.json` is deleted/reset, run baseline seeding so existing pending-review PRs are recorded as already seen instead of all being launched at once:
+### Starting The Watcher
+
+For a persistent watcher, use Windows `Start-Process` from a **foreground** shell tool call. Do not run the watcher itself with the shell tool's `background: true`. OpenCode 2.0.21 evicts location services after 60 minutes without durable session events and cancels their managed shells; the watcher's polling and console output do not keep that location alive. A local `Start-Process` child continues after the launcher exits.
+
+Before launching:
+
+- Check `Win32_Process` for a `powershell.exe`/`pwsh.exe` command line running this exact `scripts/pr-watcher.ps1` path. If one exists, report it instead of starting a duplicate. Do not stop an existing watcher unless asked.
+- Check `$HOME/.config/opencode/skills/review-pr/.review-poll-state.json`. Preserve existing state; do not delete or reset it. If it is missing, run baseline seeding in the foreground so existing pending-review PRs count as already seen without launching reviews. Explain this and stop if seeding fails:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File ~/.config/opencode/skills/review-pr/scripts/pr-watcher.ps1 -Baseline
+powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME/.config/opencode/skills/review-pr/scripts/pr-watcher.ps1" -Baseline
 ```
 
-Default command (after baseline seeding):
+After the state check (and seeding if needed), run this default launcher in the foreground. It returns without waiting for the watcher or reviews:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File ~/.config/opencode/skills/review-pr/scripts/pr-watcher.ps1
+$watcher = "$HOME/.config/opencode/skills/review-pr/scripts/pr-watcher.ps1"
+$logDir = "$HOME/.local/share/opencode/pr-watcher"
+New-Item -ItemType Directory -Force -Path $logDir -ErrorAction Stop | Out-Null
+$logBase = Join-Path $logDir ("pr-watcher-" + [guid]::NewGuid().ToString('N'))
+$process = Start-Process -FilePath (Get-Command powershell.exe -ErrorAction Stop).Source `
+    -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$watcher`"" `
+    -WorkingDirectory $HOME -WindowStyle Hidden `
+    -RedirectStandardOutput "$logBase.out.log" -RedirectStandardError "$logBase.err.log" `
+    -PassThru -ErrorAction Stop
+[pscustomobject]@{ PID = $process.Id; Stdout = "$logBase.out.log"; Stderr = "$logBase.err.log" }
 ```
+
+Launch rules:
+
+- Honor only requested watcher options: `-PollInterval`, `-OpencodeModel`, `-Once`, and `-Baseline`. Validate values and quote them before adding them to `-ArgumentList`; do not interpolate arbitrary `$ARGUMENTS` into a command.
+- Run an explicitly requested `-Once` or `-Baseline` directly in the foreground, without `Start-Process`. Both exit after one operation; `-Baseline` seeds only and must not start the persistent watcher.
+- Do not add `-Wait` or `-NoNewWindow` to the persistent launcher. Do not run an agent-managed polling loop. The script owns polling, review sessions, and terminal tabs.
+- After the launcher exits, make one process/log check in a separate shell call. Verify the returned PID and exact script path, and inspect both log tails for startup errors. Report a live process as running at the time checked; if startup is still unconfirmed, report only the launch. A returned PID alone does not prove successful initialization or a completed review.
+- Report the PID and both log paths. Use these logs for later diagnosis, not OpenCode's managed `shell/*.out` files. Keep prior launch logs.
+- This launch survives chat inactivity; it does not provide restart-on-crash or launch-at-login behavior. Do not register a scheduled task or service unless the user requests one.
 
 Defaults:
 
