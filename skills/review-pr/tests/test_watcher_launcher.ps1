@@ -107,7 +107,8 @@ Write-Error 'test-worker-error'
             if ($stdout -notmatch 'Stopping PR watcher') { throw 'Stop menu did not run.' }
             $arguments = Get-Content -LiteralPath (Join-Path $case 'terminal.json') -Raw | ConvertFrom-Json
             $view = [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($arguments[-1]))
-            if ($view -notmatch 'Closing this tab does not stop' -or $view -notmatch '-Tail 50 -Wait') {
+            if ($view -notmatch 'Closing this tab does not stop' -or $view -notmatch '-Tail 500 -Wait' -or
+                $view -notmatch 'last 500 lines of this run') {
                 throw 'Log menu did not create a read-only live log terminal.'
             }
             foreach ($path in @($info.Stdout, $info.Stderr)) {

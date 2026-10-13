@@ -16,9 +16,9 @@ function Open-WatcherLogs {
     $stdout = $LogPath.Replace("'", "''")
     $stderr = $ErrorLogPath.Replace("'", "''")
     $command = @"
-Write-Host 'PR watcher live logs. Closing this tab does not stop the watcher.'
+Write-Host 'PR watcher live logs: last 500 lines of this run, then new output. Closing this tab does not stop the watcher.'
 Get-Content -LiteralPath '$stderr' -Tail 20 -ErrorAction SilentlyContinue
-Get-Content -LiteralPath '$stdout' -Tail 50 -Wait
+Get-Content -LiteralPath '$stdout' -Tail 500 -Wait
 "@
     $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
     try {
