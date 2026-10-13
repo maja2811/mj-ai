@@ -93,14 +93,20 @@ function Get-PythonExe {
 
 function Get-ReviewablePrs {
     $py = Get-PythonExe
-    $json = & $py $PollScript --once --json 2>$null
-    if (-not $json) { return @() }
-    try {
-        return $json | ConvertFrom-Json
-    } catch {
-        Write-Log "WARN: could not parse poll_reviews.py output as JSON"
-        return @()
+    Write-Log 'Checking GitHub for pending reviews...'
+    # Keep poll progress/errors visible without mixing diagnostics into JSON.
+    # Windows PowerShell treats native stderr (including progress) as errors.
+    $ErrorActionPreference = 'Continue'
+    $lines = @(& $py $PollScript --once --json 2>&1)
+    $exitCode = $LASTEXITCODE
+    $diagnostics = @($lines | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] })
+    foreach ($line in $diagnostics) { Write-Log ([string]$line) }
+    if ($exitCode -ne 0 -or ($diagnostics -match '\[poll\] Error:')) {
+        throw "poll_reviews.py failed; see the poll diagnostics above."
     }
+    $json = ($lines | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }) -join "`n"
+    if (-not $json) { return @() }
+    return $json | ConvertFrom-Json -ErrorAction Stop
 }
 
 function Mark-Reviewed {
@@ -158,7 +164,7 @@ function Open-ReadyReviews {
 }
 
 function Invoke-PollCycle {
-    $prs = Get-ReviewablePrs
+    $prs = @(Get-ReviewablePrs)
     if ($prs.Count -eq 0) {
         Write-Log "No pending reviews found."
         return

@@ -25,6 +25,8 @@ Bundled resources:
 - `scripts/start_review_v2.py`: creates an OpenCode V2 review session through `opencode2 api` and submits the review prompt with this skill; also used by the renderer to read the session model.
 - `scripts/notify.ps1`: shows a native Windows toast notification (WinRT `ToastNotificationManager`); used by the global `windows-toasts` OpenCode plugin.
 - `scripts/pr-watcher.ps1`: Windows-native watcher that loops `poll_reviews.py`, starts a background review session per new/updated PR via `start_review_v2.py`, and opens a Windows Terminal tab attached to the session once the review is ready.
+- `scripts/pr-watcher-tray.ps1`: hidden Windows tray host with Open logs and Stop watcher actions; owns the polling script as a PowerShell job.
+- `references/pr-watcher.ico`: eye icon for the Windows tray watcher.
 - `scripts/clone_github_repo.py`: clones supporting GitHub repositories under the current review workspace.
 
 ## When To Use This Skill
@@ -423,7 +425,7 @@ Use `scripts/pr-watcher.ps1` when the user wants review sessions to start automa
 
 Reattach to any review with `opencode --session <sessionID>`. The global `opencode.json` allows `external_directory` access to `~/.local/share/opencode/.review-pr-tmp/*` so reviews do not prompt for their own workspace. The macOS `pr-watcher.sh` and its review-tabs plugin are not bundled in this install; do not suggest them on Windows.
 
-For verification or troubleshooting requests, inspect `scripts/pr-watcher.ps1`, `scripts/poll_reviews.py`, and `scripts/start_review_v2.py` directly and answer from the scripts. Do not start a persistent watcher unless the user asks to start it.
+For verification or troubleshooting requests, inspect `scripts/pr-watcher-tray.ps1`, `scripts/pr-watcher.ps1`, `scripts/poll_reviews.py`, and `scripts/start_review_v2.py` directly and answer from the scripts. Do not start a persistent watcher unless the user asks to start it.
 
 ### Starting The Watcher
 
@@ -431,7 +433,7 @@ For a persistent watcher, use Windows `Start-Process` from a **foreground** shel
 
 Before launching:
 
-- Check `Win32_Process` for a `powershell.exe`/`pwsh.exe` command line running this exact `scripts/pr-watcher.ps1` path. If one exists, report it instead of starting a duplicate. Do not stop an existing watcher unless asked.
+- Check `Win32_Process` for a `powershell.exe`/`pwsh.exe` command line running either exact script path: `scripts/pr-watcher-tray.ps1` or `scripts/pr-watcher.ps1`. Normalize path separators before matching. If one exists, report it instead of starting a duplicate. Do not stop an existing watcher unless asked. The tray host's polling job does not have a `-File pr-watcher.ps1` command line; check the host, not just direct workers.
 - Check `$HOME/.config/opencode/skills/review-pr/.review-poll-state.json`. Preserve existing state; do not delete or reset it. If it is missing, run baseline seeding in the foreground so existing pending-review PRs count as already seen without launching reviews. Explain this and stop if seeding fails:
 
 ```powershell
@@ -441,13 +443,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME/.config/opencode/skil
 After the state check (and seeding if needed), run this default launcher in the foreground. It returns without waiting for the watcher or reviews:
 
 ```powershell
-$watcher = "$HOME/.config/opencode/skills/review-pr/scripts/pr-watcher.ps1"
+$watcher = "$HOME/.config/opencode/skills/review-pr/scripts/pr-watcher-tray.ps1"
 $logDir = "$HOME/.local/share/opencode/pr-watcher"
 New-Item -ItemType Directory -Force -Path $logDir -ErrorAction Stop | Out-Null
 $logBase = Join-Path $logDir ("pr-watcher-" + [guid]::NewGuid().ToString('N'))
 $process = Start-Process -FilePath (Get-Command powershell.exe -ErrorAction Stop).Source `
-    -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$watcher`"" `
-    -WorkingDirectory $HOME -WindowStyle Minimized `
+    -ArgumentList "-NoProfile -STA -ExecutionPolicy Bypass -File `"$watcher`" -LogPath `"$logBase.out.log`" -ErrorLogPath `"$logBase.err.log`"" `
+    -WorkingDirectory $HOME -WindowStyle Hidden `
     -RedirectStandardOutput "$logBase.out.log" -RedirectStandardError "$logBase.err.log" `
     -PassThru -ErrorAction Stop
 [pscustomobject]@{ PID = $process.Id; Stdout = "$logBase.out.log"; Stderr = "$logBase.err.log" }
@@ -456,11 +458,12 @@ $process = Start-Process -FilePath (Get-Command powershell.exe -ErrorAction Stop
 Launch rules:
 
 - Honor only requested watcher options: `-PollInterval`, `-OpencodeModel`, `-Once`, and `-Baseline`. Validate values and quote them before adding them to `-ArgumentList`; do not interpolate arbitrary `$ARGUMENTS` into a command.
-- Run an explicitly requested `-Once` or `-Baseline` directly in the foreground, without `Start-Process`. Both exit after one operation; `-Baseline` seeds only and must not start the persistent watcher.
+- Run an explicitly requested `-Once` or `-Baseline` directly with `scripts/pr-watcher.ps1` in the foreground, without `Start-Process` or the tray host. Both exit after one operation; `-Baseline` seeds only and must not start the persistent watcher.
 - Do not add `-Wait` or `-NoNewWindow` to the persistent launcher. Do not run an agent-managed polling loop. The script owns polling, review sessions, and terminal tabs.
-- After the launcher exits, make one process/log check in a separate shell call. Verify the returned PID and exact script path, and inspect both log tails for startup errors. Report a live process as running at the time checked; if startup is still unconfirmed, report only the launch. A returned PID alone does not prove successful initialization or a completed review.
+- After the launcher exits, make one process/log check in a separate shell call. Verify the returned tray host PID and exact script path, and inspect both log tails for startup errors. Confirm both the tray-ready and worker-starting messages before reporting successful initialization. If startup is still unconfirmed, report only the launch. A returned PID alone does not prove successful initialization or a completed review.
 - Report the PID and both log paths. Use these logs for later diagnosis, not OpenCode's managed `shell/*.out` files. Keep prior launch logs.
-- Start the watcher window minimized. To stop polling, restore its PowerShell window from the taskbar and close that window/tab with **X**, or run `Stop-Process -Id <reported watcher PID>` with the actual PID. Closing the watcher leaves existing OpenCode review sessions and saved review state intact. Output goes to the log files, so the watcher window may appear blank; do not close a review tab expecting it to stop the watcher.
+- The hidden tray host shows an eye icon near the clock (possibly behind **˄**). Hover for the watcher name/PID. Right-click **Open logs**, or double-click, to open a Windows Terminal tab following the log; poll messages show checking, found PRs, and errors. Closing this log tab does not stop polling.
+- Right-click **Stop watcher** to stop polling and remove the icon, or ask the agent to stop the verified tray host PID. The host owns its polling job; stopping it leaves existing OpenCode review sessions and saved review state intact. The icon indicates a running process, not proof that each GitHub poll succeeded. It disappears when the polling job ends; inspect the retained logs if it vanishes.
 - This launch survives chat inactivity; it does not provide restart-on-crash or launch-at-login behavior. Do not register a scheduled task or service unless the user requests one.
 
 Defaults:
