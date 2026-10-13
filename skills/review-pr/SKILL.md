@@ -447,7 +447,7 @@ New-Item -ItemType Directory -Force -Path $logDir -ErrorAction Stop | Out-Null
 $logBase = Join-Path $logDir ("pr-watcher-" + [guid]::NewGuid().ToString('N'))
 $process = Start-Process -FilePath (Get-Command powershell.exe -ErrorAction Stop).Source `
     -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$watcher`"" `
-    -WorkingDirectory $HOME -WindowStyle Hidden `
+    -WorkingDirectory $HOME -WindowStyle Minimized `
     -RedirectStandardOutput "$logBase.out.log" -RedirectStandardError "$logBase.err.log" `
     -PassThru -ErrorAction Stop
 [pscustomobject]@{ PID = $process.Id; Stdout = "$logBase.out.log"; Stderr = "$logBase.err.log" }
@@ -460,6 +460,7 @@ Launch rules:
 - Do not add `-Wait` or `-NoNewWindow` to the persistent launcher. Do not run an agent-managed polling loop. The script owns polling, review sessions, and terminal tabs.
 - After the launcher exits, make one process/log check in a separate shell call. Verify the returned PID and exact script path, and inspect both log tails for startup errors. Report a live process as running at the time checked; if startup is still unconfirmed, report only the launch. A returned PID alone does not prove successful initialization or a completed review.
 - Report the PID and both log paths. Use these logs for later diagnosis, not OpenCode's managed `shell/*.out` files. Keep prior launch logs.
+- Start the watcher window minimized. To stop polling, restore its PowerShell window from the taskbar and close that window/tab with **X**, or run `Stop-Process -Id <reported watcher PID>` with the actual PID. Closing the watcher leaves existing OpenCode review sessions and saved review state intact. Output goes to the log files, so the watcher window may appear blank; do not close a review tab expecting it to stop the watcher.
 - This launch survives chat inactivity; it does not provide restart-on-crash or launch-at-login behavior. Do not register a scheduled task or service unless the user requests one.
 
 Defaults:

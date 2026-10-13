@@ -12,6 +12,7 @@ $parseErrors = $null
 [System.Management.Automation.Language.Parser]::ParseInput($code, [ref]$tokens, [ref]$parseErrors) | Out-Null
 if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
 if ($code -match '-Wait\b|-NoNewWindow\b') { throw 'Launcher must return and use a separate window.' }
+if ($code -notmatch '-WindowStyle\s+Minimized\b') { throw 'Watcher window must start minimized.' }
 
 # Spaces in both paths exercise Start-Process argument quoting.
 $root = Join-Path $env:LOCALAPPDATA ('Temp/opencode/watcher launch check ' + [guid]::NewGuid().ToString('N'))
@@ -52,7 +53,7 @@ Write-Host 'after-launcher-exit'
         throw "Persistent stdout capture failed: $stdout"
     }
     if ($stderr -notmatch 'test-stderr') { throw "Persistent stderr capture failed: $stderr" }
-    Write-Output 'PASS: quoted paths, child survival after launcher exit, and persistent stdout/stderr.'
+    Write-Output 'PASS: minimized window option, quoted paths, child survival after launcher exit, and persistent stdout/stderr.'
     Write-Output "Validation artifacts: $root"
 } finally {
     if ($child -and -not $child.HasExited) { Stop-Process -Id $child.Id -ErrorAction SilentlyContinue }

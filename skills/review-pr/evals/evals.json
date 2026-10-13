@@ -249,12 +249,13 @@
         "The workflow does not ask for a review target or run the review workflow in this chat.",
         "The workflow checks for an existing watcher process and does not launch a duplicate or stop it without permission.",
         "Existing .review-poll-state.json is preserved; if missing, baseline seeding runs in the foreground before launching, and a seeding failure stops the launch.",
-        "The persistent watcher starts through local Start-Process from a foreground shell tool call, not through the shell tool's background: true mode, -Wait, or -NoNewWindow.",
+        "The persistent watcher starts through local Start-Process with -WindowStyle Minimized from a foreground shell tool call, not through the shell tool's background: true mode, -Wait, or -NoNewWindow.",
         "The launcher quotes the script path, validates explicit overrides, and does not interpolate arbitrary user arguments into a command.",
         "Unique stdout and stderr logs live under ~/.local/share/opencode/pr-watcher/ outside the managed shell output directory, and prior logs remain intact.",
         "After the launcher exits, the workflow makes one PID/script-path and log check, then reports the PID and both log paths without waiting for reviews or claiming any review completed.",
         "Explicit -Once or -Baseline uses direct foreground execution without Start-Process; -Baseline never starts the persistent watcher.",
-        "The workflow does not install a scheduled task or service without a separate request."
+        "The workflow does not install a scheduled task or service without a separate request.",
+        "The workflow explains how to restore and close the minimized watcher window with X, or stop its reported PID, without closing existing review sessions or resetting review state; output remains in the log files."
       ]
     }
   ]
