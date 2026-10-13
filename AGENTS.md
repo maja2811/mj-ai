@@ -114,6 +114,12 @@ which loads `jira-assistant` with the MCP available. Do not attempt it from `bui
 Use this lifecycle for coding, debugging, refactoring, and review. Keep it lightweight;
 skip a separate plan for trivial changes.
 
+- For sequential work, use the repository checkout open in VS Code (normally the session's
+  working directory), including task branches, edits, commits and pushes, so changes and
+  diffs stay visible there.
+- Use separate worktrees for genuinely parallel work or when the user explicitly requests
+  isolation. Explain any required exception before creating or switching to another worktree.
+
 1. **Explore** — understand before acting. Inspect the repo, docs, dependencies, external
    systems, constraints, and existing behaviour as needed. Load applicable domain skills
    before relying on generic knowledge. Search narrowly and stop once the problem and the
