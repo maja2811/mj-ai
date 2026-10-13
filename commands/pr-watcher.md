@@ -10,6 +10,8 @@ Use the bundled `scripts/pr-watcher-tray.ps1` host (which owns `scripts/pr-watch
 
 Before the first start, check `$HOME/.config/opencode/skills/review-pr/.review-poll-state.json`. If it is missing, run the script with `-Baseline` in the foreground first. Explain that this records existing pending PRs as seen without reviewing them. Stop if baseline seeding fails. Preserve existing state; do not delete or reset it.
 
+Preserve `$HOME/.local/share/opencode/pr-watcher/active-reviews.json` too. The watcher restores this queue after a restart so existing review sessions still get terminal tabs when ready; do not relaunch their reviews to recover a missing tab.
+
 For a normal start, check for an existing tray host or direct watcher process before launching a duplicate. Start an independent PowerShell process with `-STA -WindowStyle Hidden` and unique stdout/stderr logs under `$HOME/.local/share/opencode/pr-watcher/`. Do not use `-Wait` or `-NoNewWindow`. Let the script handle polling, review sessions, and opening terminal tabs. Do not run an agent-managed polling loop or wait for reviews in this chat.
 
 Honor only requested script options: `-PollInterval`, `-OpencodeModel`, `-Once`, and `-Baseline`. Validate and quote values before passing them to PowerShell; do not interpolate arbitrary `$ARGUMENTS` into a command. Run `-Once` or `-Baseline` directly in the foreground without `Start-Process`; both exit after one operation. With `-Baseline`, seed only and do not start the persistent watcher.

@@ -256,7 +256,8 @@
         "Explicit -Once or -Baseline uses direct foreground execution without Start-Process; -Baseline never starts the persistent watcher.",
         "The workflow does not install a scheduled task or service without a separate request.",
         "The workflow explains the tray icon's Open logs and Stop watcher actions, including the hidden-icons arrow and that closing the live log terminal does not stop the watcher or review sessions.",
-        "The tray host keeps its UI responsive while the polling job runs, removes the icon when the job ends, and forwards poll progress/errors to retained logs without treating an error as an empty successful poll."
+        "The tray host keeps its UI responsive while the polling job runs, removes the icon when the job ends, and forwards poll progress/errors to retained logs without treating an error as an empty successful poll.",
+        "The watcher persists launched sessions awaiting tabs under ~/.local/share/opencode/pr-watcher/active-reviews.json, preserves and restores that queue after a restart without relaunching reviews, and retries failed terminal launches rather than forgetting them."
       ]
     }
   ]

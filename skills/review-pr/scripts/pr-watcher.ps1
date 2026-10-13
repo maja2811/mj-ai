@@ -51,6 +51,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ReviewDir = Split-Path -Parent $ScriptDir
 $PollScript = Join-Path $ScriptDir "poll_reviews.py"
 $StartScript = Join-Path $ScriptDir "start_review_v2.py"
+$ActiveReviewsPath = Join-Path $HOME ".local/share/opencode/pr-watcher/active-reviews.json"
 
 function Write-Log {
     param([string]$Message)
@@ -115,6 +116,38 @@ function Mark-Reviewed {
     & $py $PollScript --mark-reviewed $Url 2>$null | Out-Null
 }
 
+function Read-ActiveReviews {
+    $reviews = @{}
+    if (-not (Test-Path -LiteralPath $ActiveReviewsPath)) { return $reviews }
+    $stored = Get-Content -LiteralPath $ActiveReviewsPath -Raw -Encoding UTF8 -ErrorAction Stop |
+        ConvertFrom-Json -ErrorAction Stop
+    if ($stored -isnot [pscustomobject]) { throw "Invalid review queue: $ActiveReviewsPath" }
+    foreach ($entry in $stored.PSObject.Properties) {
+        if ($entry.Name -notmatch '^ses_[a-zA-Z0-9]+$' -or $entry.Value -isnot [string] -or
+            [string]::IsNullOrWhiteSpace($entry.Value)) {
+            throw "Invalid review queue entry: $($entry.Name)"
+        }
+        $reviews[$entry.Name] = $entry.Value
+    }
+    return $reviews
+}
+
+function Save-ActiveReviews {
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ActiveReviewsPath) -ErrorAction Stop | Out-Null
+    $temporary = "$ActiveReviewsPath.$([guid]::NewGuid().ToString('N')).tmp"
+    try {
+        [IO.File]::WriteAllText($temporary, ($script:ActiveReviews | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+        if (Test-Path -LiteralPath $ActiveReviewsPath) {
+            # PowerShell's $null would become an invalid empty backup path.
+            [IO.File]::Replace($temporary, $ActiveReviewsPath, [NullString]::Value)
+        } else {
+            [IO.File]::Move($temporary, $ActiveReviewsPath)
+        }
+    } finally {
+        if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -ErrorAction Stop }
+    }
+}
+
 function Start-ReviewSession {
     param([string]$Url, [string]$Repo, [int]$Number, [string]$Title, [string]$HeadSha)
 
@@ -128,6 +161,9 @@ function Start-ReviewSession {
         $out = & $py $StartScript --directory $ReviewDir --title $sessionTitle --model $OpencodeModel --url $Url
         if ($LASTEXITCODE -ne 0) { throw "start_review_v2.py exited with $LASTEXITCODE" }
         $sessionId = ($out | ConvertFrom-Json).session_id
+        if ($sessionId -isnot [string] -or $sessionId -notmatch '^ses_[a-zA-Z0-9]+$') {
+            throw "start_review_v2.py returned an invalid session ID"
+        }
     } catch {
         Write-Log "ERROR: failed to start review session for $Url (will retry next poll): $_"
         return
@@ -137,6 +173,7 @@ function Start-ReviewSession {
     # plugin notifies when it finishes or asks the posting question; the tab is
     # opened then by Open-ReadyReviews.
     $script:ActiveReviews[$sessionId] = $sessionTitle
+    Save-ActiveReviews
 
     # Marking reviewed at launch time (not completion) prevents relaunching the
     # same head commit on the next poll. A new commit produces a new head SHA,
@@ -150,16 +187,18 @@ function Open-ReadyReviews {
         $status = & $py $StartScript --status $sessionId 2>$null
         if ($LASTEXITCODE -ne 0 -or $status -eq "working") { continue }
         $sessionTitle = $script:ActiveReviews[$sessionId]
-        $script:ActiveReviews.Remove($sessionId)
-        Write-Log "Review $status`: $sessionTitle ($sessionId)"
         try {
             Start-Process wt.exe -ArgumentList @(
-                "new-tab", "--title", "`"$sessionTitle`"", "-d", $ReviewDir,
+                "new-tab", "--title", "`"$sessionTitle`"", "-d", "`"$ReviewDir`"",
                 "opencode.cmd", "--session", $sessionId
-            )
+            ) -ErrorAction Stop
         } catch {
             Write-Log "WARN: failed to open Windows Terminal tab; attach manually with: opencode --session $sessionId"
+            continue
         }
+        $script:ActiveReviews.Remove($sessionId)
+        Save-ActiveReviews
+        Write-Log "Review $status`: opened tab for $sessionTitle ($sessionId)"
     }
 }
 
@@ -200,7 +239,8 @@ Write-Log "PR Watcher (Windows) starting"
 Write-Log "Poll interval: ${PollInterval}s"
 Write-Log "Model: $OpencodeModel"
 
-$ActiveReviews = @{}
+$ActiveReviews = Read-ActiveReviews
+Write-Log "Restored $($ActiveReviews.Count) review session(s) awaiting terminal tabs."
 
 if ($Once) {
     Invoke-PollCycle
