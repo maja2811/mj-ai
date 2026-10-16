@@ -107,7 +107,8 @@ function Get-ReviewablePrs {
     }
     $json = ($lines | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }) -join "`n"
     if (-not $json) { return @() }
-    return $json | ConvertFrom-Json -ErrorAction Stop
+    # Enumerate the parsed array; Windows PowerShell otherwise returns it as one PR.
+    return ($json | ConvertFrom-Json -ErrorAction Stop)
 }
 
 function Mark-Reviewed {

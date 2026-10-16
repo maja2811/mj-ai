@@ -135,10 +135,12 @@ Write-Error 'test-worker-error'
     function Get-PythonExe { (Get-Command python -ErrorAction Stop).Source }
     function Write-Log { param($Message) $script:diagnostics += [string]$Message }
     $PollScript = Join-Path $root 'fake poll.py'
-    foreach ($mode in @('pending', 'empty', 'error', 'invalid', 'nonzero')) {
+    foreach ($mode in @('pending', 'multiple', 'empty-array', 'empty', 'error', 'invalid', 'nonzero')) {
         $python = "import sys`nprint('[poll] Checking for pending reviews...', file=sys.stderr)`n"
         switch ($mode) {
             'pending' { $python += 'print(''[{"number": 1}]'')' }
+            'multiple' { $python += 'print(''[{"number": 6}, {"number": 350}, {"number": 349}, {"number": 35}]'')' }
+            'empty-array' { $python += 'print(''[]'')' }
             'empty' { $python += "print('[poll] No pending reviews found.', file=sys.stderr)" }
             'error' { $python += "print('[poll] Error: fixture failure', file=sys.stderr)" }
             'invalid' { $python += "print('not JSON')" }
@@ -152,8 +154,14 @@ Write-Error 'test-worker-error'
         if ($threw -ne $expectedError) { throw "Unexpected poll-reader outcome for $mode`: $reason" }
         if (-not ($script:diagnostics -match 'Checking for pending')) { throw 'Poll progress was hidden.' }
         if ($mode -eq 'pending' -and ($prs.Count -ne 1 -or $prs[0].number -ne 1)) { throw 'Poll JSON mixed with diagnostics.' }
-        if ($mode -eq 'empty' -and $prs.Count -ne 0) { throw 'Empty poll should return no PRs.' }
+        if ($mode -eq 'multiple' -and ($prs.Count -ne 4 -or ($prs.number -join ',') -ne '6,350,349,35')) {
+            throw 'Poll JSON array was not enumerated into individual PRs.'
+        }
+        foreach ($pr in $prs) {
+            if ($pr -isnot [pscustomobject] -or $pr.number -isnot [int]) { throw 'Each PR must have a scalar integer number.' }
+        }
+        if ($mode -in @('empty', 'empty-array') -and $prs.Count -ne 0) { throw 'Empty poll should return no PRs.' }
     }
-    Write-Output 'PASS: poll progress, JSON separation, empty results, errors and malformed output.'
+    Write-Output 'PASS: poll progress, individual PRs with scalar numbers, empty results, errors and malformed output.'
 }
 Write-Output "Validation artifacts: $root"
