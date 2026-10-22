@@ -10,6 +10,61 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $watcher = Join-Path $PSScriptRoot 'pr-watcher.ps1'
+$script:RepairAttempted = $false
+$script:RepairJob = $null
+
+function Start-WatcherRepair {
+    param([string]$Failure)
+    if ($script:RepairAttempted) { return }
+    # One attempt per tray lifetime, even if OpenCode is unavailable. Never recurse.
+    $script:RepairAttempted = $true
+    try {
+        $reportPath = "$LogPath.failure.json"
+        @{
+            failure = $Failure; log_path = $LogPath; error_log_path = $ErrorLogPath
+            worker_path = $watcher; tray_pid = $PID
+        } | ConvertTo-Json | Set-Content -LiteralPath $reportPath -Encoding UTF8 -ErrorAction Stop
+        $helper = Join-Path $PSScriptRoot 'start_review_v2.py'
+        $setupDirectory = (Get-Item -LiteralPath $PSScriptRoot).Parent.Parent.Parent.FullName
+        Write-Host "PR watcher failure: requesting one repair session. Report: $reportPath"
+        $script:RepairJob = Start-Job -ScriptBlock {
+            param($helper, $directory, $model, $reportPath)
+            $ErrorActionPreference = 'Stop'
+            try {
+                $python = if (Get-Command python -ErrorAction SilentlyContinue) { 'python' } else { 'python3' }
+                $result = & $python $helper --directory $directory --model $model --watcher-failure $reportPath
+                if ($LASTEXITCODE -ne 0) { throw "Repair helper exited with $LASTEXITCODE" }
+                $sessionId = ($result | ConvertFrom-Json -ErrorAction Stop).session_id
+                if ($sessionId -isnot [string] -or $sessionId -notmatch '^ses_[a-zA-Z0-9]+$') {
+                    throw 'Repair helper returned an invalid session ID'
+                }
+                Write-Host "PR watcher repair started: $sessionId. Attach with: opencode --session $sessionId"
+                try {
+                    Start-Process wt.exe -ArgumentList @(
+                        'new-tab', '--title', '"PR watcher repair"', '-d', "`"$directory`"",
+                        'opencode.cmd', '--session', $sessionId
+                    ) -ErrorAction Stop | Out-Null
+                } catch {
+                    Write-Host "WARN: could not open repair terminal; attach manually: opencode --session $sessionId. $_"
+                }
+            } catch {
+                Write-Host "ERROR: could not start watcher repair (not retried this run): $_"
+            }
+        } -ArgumentList $helper, $setupDirectory, $OpencodeModel, $reportPath
+    } catch {
+        Write-Host "ERROR: could not schedule watcher repair (not retried this run): $_"
+    }
+}
+
+function Receive-WatcherOutput {
+    Receive-Job -Job $job -ErrorAction Continue 2>&1 | ForEach-Object {
+        $line = [string]$_
+        Write-Host $line
+        if ($_ -is [System.Management.Automation.ErrorRecord] -or $line -match '^\s*(?:\[[^\]]+\]\s*)?ERROR:') {
+            Start-WatcherRepair -Failure $line
+        }
+    }
+}
 
 function Open-WatcherLogs {
     # Encode the command and quote literal paths, including spaces/apostrophes.
@@ -61,10 +116,17 @@ try {
         & $path -PollInterval $interval -OpencodeModel $model
     } -ArgumentList $watcher, $PollInterval, $OpencodeModel
     $timer.Add_Tick({
-        Receive-Job -Job $job -ErrorAction Continue 2>&1 | ForEach-Object { Write-Host ([string]$_) }
+        Receive-WatcherOutput
+        if ($script:RepairJob) {
+            Receive-Job -Job $script:RepairJob -ErrorAction Continue 2>&1 | ForEach-Object { Write-Host ([string]$_) }
+        }
         if ($job.State -notin @('Running', 'NotStarted')) {
-            Write-Host "PR watcher worker ended ($($job.State)); removing tray icon."
-            $context.ExitThread()
+            Start-WatcherRepair -Failure "PR watcher worker ended unexpectedly ($($job.State))."
+            # Let the independent repair submission finish before disposing its job.
+            if (-not $script:RepairJob -or $script:RepairJob.State -notin @('Running', 'NotStarted')) {
+                Write-Host "PR watcher worker ended ($($job.State)); removing tray icon."
+                $context.ExitThread()
+            }
         }
     })
     $icon.Visible = $true
@@ -83,5 +145,10 @@ try {
         Stop-Job -Job $job -ErrorAction SilentlyContinue
         Receive-Job -Job $job -ErrorAction Continue 2>&1 | ForEach-Object { Write-Host ([string]$_) }
         Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    }
+    if ($script:RepairJob) {
+        Stop-Job -Job $script:RepairJob -ErrorAction SilentlyContinue
+        Receive-Job -Job $script:RepairJob -ErrorAction Continue 2>&1 | ForEach-Object { Write-Host ([string]$_) }
+        Remove-Job -Job $script:RepairJob -Force -ErrorAction SilentlyContinue
     }
 }

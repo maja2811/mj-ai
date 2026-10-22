@@ -4,6 +4,7 @@ $ErrorActionPreference = 'Stop'
 $root = Join-Path $env:LOCALAPPDATA ('Temp/opencode/watcher queue check ' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $root | Out-Null
 $ActiveReviewsPath = Join-Path $root 'active-reviews.json'
+$ScriptDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts'
 $StartScript = 'fake-start.py'
 $ReviewDir = Join-Path $root 'review directory with spaces'
 $OpencodeModel = 'fixture/model'
@@ -12,7 +13,7 @@ $tokens = $null
 $parseErrors = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($workerPath, [ref]$tokens, [ref]$parseErrors)
 if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
-foreach ($name in @('Read-ActiveReviews', 'Save-ActiveReviews', 'Start-ReviewSession', 'Open-ReadyReviews')) {
+foreach ($name in @('Read-ActiveReviews', 'Save-ActiveReviews', 'Start-ReviewSession', 'Open-ReadyReviews', 'Invoke-PollCycle', 'Invoke-ReviewMaintenance')) {
     $function = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true)
     if (-not $function) { throw "Missing function: $name" }
     . ([scriptblock]::Create($function.Extent.Text))
@@ -21,6 +22,11 @@ function Write-Log { param($Message) }
 function Get-PythonExe { 'Test-Python' }
 function Test-Python {
     $global:LASTEXITCODE = $script:pythonExitCode
+    if ($args -contains 'maintain') {
+        $script:maintenanceCalls++
+        $global:LASTEXITCODE = $script:maintenanceExitCode
+        return 'WARN: fixture maintenance result'
+    }
     if ($args -contains '--status') {
         $script:statusCalls++
         return $script:reviewStatus
@@ -33,6 +39,7 @@ function Mark-Reviewed {
     $script:markerCalls++
     if (-not (Read-ActiveReviews).ContainsKey('ses_fixture1')) { throw 'Head marked before queue was saved.' }
 }
+function Get-ReviewablePrs { $script:pollCalls++; @() }
 function Start-Process {
     [CmdletBinding()]
     param($FilePath, $ArgumentList)
@@ -48,6 +55,7 @@ $script:markerCalls = 0
 $script:terminalCalls = 0
 $script:statusCalls = 0
 $script:pythonExitCode = 0
+$script:maintenanceExitCode = 0
 $script:reviewStatus = 'working'
 $script:failTerminal = $false
 Start-ReviewSession -Url 'https://example.test/pr/1' -Repo "fixture-$([char]0xe6)" -Number 1 -Title 'Fixture' -HeadSha 'abcdef1234'
@@ -117,7 +125,6 @@ Write-Output 'PASS: malformed queues fail without discarding state.'
 # Exercise startup wiring without entering the real loop or calling external tools.
 function Test-Prerequisites { }
 function Invoke-BaselineSeed { $script:baselineCalls++ }
-function Invoke-PollCycle { $script:pollCalls++ }
 $worker = Get-Content -LiteralPath $workerPath -Raw
 $main = $worker.Substring($worker.LastIndexOf("`nTest-Prerequisites")).Trim()
 $Baseline = $true
@@ -131,9 +138,11 @@ $script:ActiveReviews = @{}
 $Baseline = $false
 $Once = $true
 $script:pollCalls = 0
+$script:maintenanceCalls = 0
+$script:maintenanceExitCode = 23
 . ([scriptblock]::Create($main))
-if ($script:pollCalls -ne 1 -or $script:ActiveReviews['ses_fixture1'] -ne $expectedTitle) {
-    throw 'Startup did not restore the queue before its single poll.'
+if ($script:pollCalls -ne 1 -or $script:maintenanceCalls -ne 1 -or $script:ActiveReviews['ses_fixture1'] -ne $expectedTitle) {
+    throw 'Maintenance failure interrupted the single poll or startup lost the restored queue.'
 }
-Write-Output 'PASS: startup restores the queue; baseline leaves it untouched and Once exits after one poll.'
+Write-Output 'PASS: startup restores the queue; baseline skips maintenance; Once runs maintenance and polls despite its failure.'
 Write-Output "Validation artifacts: $root"

@@ -204,6 +204,7 @@ function Open-ReadyReviews {
 }
 
 function Invoke-PollCycle {
+    Invoke-ReviewMaintenance
     $prs = @(Get-ReviewablePrs)
     if ($prs.Count -eq 0) {
         Write-Log "No pending reviews found."
@@ -211,6 +212,19 @@ function Invoke-PollCycle {
     }
     foreach ($pr in $prs) {
         Start-ReviewSession -Url $pr.url -Repo $pr.repo -Number $pr.number -Title $pr.title -HeadSha $pr.head_sha
+    }
+}
+
+function Invoke-ReviewMaintenance {
+    $lifecycleScript = Join-Path $ScriptDir "review_lifecycle.py"
+    try {
+        $py = Get-PythonExe
+        $output = @(& $py $lifecycleScript maintain 2>$null)
+        $exitCode = $LASTEXITCODE
+        foreach ($line in $output) { Write-Log ([string]$line) }
+        if ($exitCode -ne 0) { Write-Log "WARN: review lifecycle helper exited with $exitCode." }
+    } catch {
+        Write-Log "WARN: review lifecycle maintenance was unavailable: $_"
     }
 }
 

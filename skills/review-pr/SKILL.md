@@ -60,7 +60,7 @@ If the task is to start, verify, inspect, troubleshoot, or explain the automatic
 
 Honor only options the user actually asked for.
 
-- Output path: use the requested path, otherwise default from `suggested_filename` in `pr-manifest.json`.
+- Output path: use the requested path, otherwise save to `<WORKSPACE>/<suggested_filename>` from `pr-manifest.json`. Explicit external output paths remain outside workspace cleanup.
 - Checklist: always fetch and use the latest `checklist.md` from `DanskeStatsbaner/bi-dlh-documentation`. If the user provides another checklist URL, treat it as extra context only; it must not replace the official latest checklist.
 - Excluded files: default to `uv.lock` for parity with the old backend. Add user-provided exclusions to that default unless the user explicitly asks to include lockfiles or include `uv.lock`.
 - Custom review instruction: apply only when explicitly provided.
@@ -418,6 +418,16 @@ Safety rules:
 - Do not post a request-changes review as approval.
 - If `gh` auth or repository access fails, report the error and do not retry blindly.
 - After posting, verify the latest submitted PR review with `gh pr view <PR_URL> --json reviews --jq '.reviews[-1] | {author: .author.login, state: .state, submittedAt: .submittedAt}'` or an equivalent GitHub API query. Report the verified review state and timestamp in the final assistant message. If verification fails, say the post command succeeded but verification failed, include the error, and do not claim a verified posted state.
+- After an explicitly approved `--approve` post, register it only after verification with:
+
+  ```bash
+  python ~/.config/opencode/skills/review-pr/scripts/review_lifecycle.py record-approval \
+    --manifest-path "<WORKSPACE>/pr-manifest.json" \
+    --session-id "<CURRENT_REVIEW_SESSION_ID>" \
+    --review-path "<FINAL_MARKDOWN_PATH>"
+  ```
+
+  This helper independently verifies the authenticated GitHub user, the exact submitted `APPROVED` review, PR head SHA, rendered body, session, and workspace before writing an idempotent receipt. Report its verified review ID and submission timestamp. If the post command succeeded but registration fails, report that narrow verification failure and leave all artifacts intact. Never register comments, request-changes, dismissed, unverified, or unanswered posts; they remain unarchived.
 
 ## Optional PR Watcher
 
@@ -463,8 +473,10 @@ Launch rules:
 - After the launcher exits, make one process/log check in a separate shell call. Verify the returned tray host PID and exact script path, and inspect both log tails for startup errors. Confirm both the tray-ready and worker-starting messages before reporting successful initialization. If startup is still unconfirmed, report only the launch. A returned PID alone does not prove successful initialization or a completed review.
 - Report the PID and both log paths. Use these logs for later diagnosis, not OpenCode's managed `shell/*.out` files. Keep prior launch logs.
 - The hidden tray host shows an eye icon near the clock (possibly behind **˄**). Hover for the watcher name/PID. Right-click **Open logs**, or double-click, to open a Windows Terminal tab showing the last 500 lines of the current run, then following new output; poll messages show checking, found PRs, and errors. Earlier runs remain in separate log files. Closing this log tab does not stop polling.
-- Right-click **Stop watcher** to stop polling and remove the icon, or ask the agent to stop the verified tray host PID. The host owns its polling job; stopping it leaves existing OpenCode review sessions and saved review state intact. The icon indicates a running process, not proof that each GitHub poll succeeded. It disappears when the polling job ends; inspect the retained logs if it vanishes.
+- Right-click **Stop watcher** to stop polling and remove the icon, or ask the agent to stop the verified tray host PID. The host owns its polling job; stopping it leaves existing OpenCode review sessions and saved review state intact. The icon indicates a running process, not proof that each GitHub poll succeeded. After an unexpected worker exit, the host attempts to submit its repair session before removing the icon; inspect the retained logs if it vanishes.
 - This launch survives chat inactivity; it does not provide restart-on-crash or launch-at-login behavior. Do not register a scheduled task or service unless the user requests one.
+- On the first worker `ERROR:` message, PowerShell error, or unexpected worker exit, the tray host attempts to start a separate **PR watcher repair** OpenCode session and opens its terminal tab. It writes the error and both log paths to `<stdout-log-path>.failure.json`. The session uses the watcher's model and the setup repository as its working directory, with instructions to diagnose and fix watcher code while preserving review sessions, poll state, the tab queue, and unrelated changes. It must ask before restarting the watcher, committing, pushing, or editing agent/skill instructions. Normal **Stop watcher** does not request repair.
+- The host makes one repair attempt per run, including if OpenCode is unavailable; restarting the watcher re-arms it. Look for `PR watcher repair started` and its session ID in the run log, or attach with `opencode --session <sessionID>` if the terminal cannot open. A failed repair launch stays in the logs without spawning retries. Repair runs in a separate owned job so polling and the tray menu stay responsive. A killed tray host or machine outage cannot start a repair, and repair does not guarantee an automatic watcher restart.
 
 Defaults:
 
@@ -475,7 +487,7 @@ Defaults:
 - Baseline mode: pass `-Baseline` to seed existing pending PRs as already-seen without launching any sessions.
 - State file (dedup by head SHA): `~/.config/opencode/skills/review-pr/.review-poll-state.json`, managed by `poll_reviews.py`. A PR is marked reviewed only after its session was started and saved to the tab queue, so a failed start is retried on the next poll.
 - Tab queue: `~/.local/share/opencode/pr-watcher/active-reviews.json` records launched sessions awaiting their terminal tabs. The watcher restores it after a restart, checks those existing sessions without relaunching their reviews, and removes an entry after requesting its tab. Failed terminal launches remain queued for retry. Preserve this file; do not delete or reset it. A corrupt queue stops startup rather than discarding pending sessions. Sessions whose tabs opened already are not queued again.
-- Review artifacts go to `~/.local/share/opencode/.review-pr-tmp` (override with `PR_WATCHER_REVIEW_TMP_DIR`). The Windows watcher does not clean them up; delete old `review-pr-*` folders manually when needed.
+- Review artifacts go to `~/.local/share/opencode/.review-pr-tmp` (override with `PR_WATCHER_REVIEW_TMP_DIR`). The watcher runs lifecycle maintenance on every poll, including `-Once` and polls with no pending PRs. After you explicitly approve and post a review, register its verified `APPROVED` result with `review_lifecycle.py`; registration creates a workspace receipt. On a later tick, the watcher archives the session only after it and every descendant finish successfully with no pending forms or permissions. Seven full days after the verified archive, a later tick may remove that direct-child `review-pr-*` workspace if the session remains inactive, the archive marker stays unchanged, Git work remains clean, and the workspace matches its archive-time snapshot. The helper preserves restored, active, unresolved, changed, dirty, malformed, mismatched, or linked workspaces. Preview actions with `python ~/.config/opencode/skills/review-pr/scripts/review_lifecycle.py maintain --dry-run`. The watcher performs no cleanup while stopped and skips historical workspaces without receipts. Workspace cleanup never removes an explicitly requested output outside the workspace.
 - Notification: the `windows-toasts` plugin calls `scripts/notify.ps1`. Toasts and terminal tabs are independent: a toast can appear while the watcher is stopped; the saved tab queue lets the next persistent watcher open outstanding reviews. If toasts do not appear, check Windows notification settings for PowerShell.
 - Requires `gh`, `python`, `opencode.cmd`/`opencode2.cmd` (npm shims; the `.ps1` shims may be blocked by execution policy), and `wt.exe` (Windows Terminal) on PATH.
 
@@ -495,6 +507,6 @@ Defaults:
 ## Output Rules
 
 - Final deliverable: one markdown file containing the review.
-- Default location: current directory.
+- Default location: `<WORKSPACE>` for PR reviews; use the explicitly requested path when provided.
 - Default filename: use `suggested_filename` from `pr-manifest.json` unless the user requested a different path.
 - Keep the local review workspace so artifacts remain inspectable.

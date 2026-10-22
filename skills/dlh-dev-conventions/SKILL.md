@@ -229,6 +229,11 @@ uv run ruff check adb/ && uv run ruff format --check adb/ && uv run mypy
 uv run ruff check . && uv run ruff format --check . && uv run mypy
 ```
 
+CI for `adb/` repos runs its own pinned tools from `bi-dlh-dmt-ci-cd/scripts/requirements.txt`
+(currently `mypy==1.15.0`, `ruff==0.9.6`). Older mypy flags errors that a newer local mypy
+accepts, for example dict invariance in tests. A clean local mypy run does not prove CI passes,
+so check the CI result on the pushed head. CI finishes in a few minutes.
+
 Ask the user which pytest scope to run before executing pytest. Present the available
 test directories/files and let them choose:
 

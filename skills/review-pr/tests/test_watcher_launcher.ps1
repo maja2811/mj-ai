@@ -20,6 +20,19 @@ if ($code -notmatch '-WindowStyle\s+Hidden\b' -or $code -notmatch '-STA\b') {
 $root = Join-Path $env:LOCALAPPDATA ('Temp/opencode/watcher launch check''s ' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $root | Out-Null
 $traySource = Get-Content -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts/pr-watcher-tray.ps1') -Raw
+# Stub repair dispatch before any fixture starts: this test must never call OpenCode.
+$trayAst = [System.Management.Automation.Language.Parser]::ParseInput($traySource, [ref]$tokens, [ref]$parseErrors)
+$repair = $trayAst.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Start-WatcherRepair' }, $true)
+if (-not $repair) { throw 'Missing repair hook; refusing to start fixture.' }
+$traySource = $traySource.Replace($repair.Extent.Text, @'
+function Start-WatcherRepair {
+    param([string]$Failure)
+    if ($script:RepairAttempted) { return }
+    $script:RepairAttempted = $true
+    Write-Host 'fixture-repair-requested'
+    $script:RepairJob = Start-Job { Start-Sleep -Seconds 2; Write-Host 'fixture-repair-submitted' }
+}
+'@)
 $iconPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'references/pr-watcher.ico'
 Add-Type -AssemblyName System.Drawing
 foreach ($size in @(16, 32, 48)) {
@@ -31,7 +44,7 @@ New-Item -ItemType Directory -Path (Join-Path $root 'references') | Out-Null
 Copy-Item -LiteralPath $iconPath -Destination (Join-Path $root 'references/pr-watcher.ico')
 Write-Output 'PASS: bundled eye icon loads at 16, 32 and 48 pixels.'
 
-foreach ($mode in @('completion', 'menu-stop', 'host-stop')) {
+foreach ($mode in @('completion', 'clean-exit', 'menu-stop', 'host-stop')) {
     $case = Join-Path $root $mode
     New-Item -ItemType Directory -Path $case | Out-Null
     $fixture = Join-Path $case 'fake watcher.ps1'
@@ -41,15 +54,20 @@ foreach ($mode in @('completion', 'menu-stop', 'host-stop')) {
     $child = $null
     $parent = $null
     try {
+        $releasePath = (Join-Path $case 'launcher-returned.signal').Replace("'", "''")
+        $readyPath = (Join-Path $case 'worker-ready.signal').Replace("'", "''")
         $worker = @'
 param([int]$PollInterval, [string]$OpencodeModel)
 Write-Host "worker-pid=$PID interval=$PollInterval model=$OpencodeModel"
 Write-Host 'started'
+while (-not (Test-Path -LiteralPath '__RELEASE_PATH__')) { Start-Sleep -Milliseconds 100 }
 Start-Sleep -Seconds 5
 Write-Host 'after-launcher-exit'
-Write-Error 'test-worker-error'
+Set-Content -LiteralPath '__READY_PATH__' -Value 'ready'
 '@
-        if ($mode -ne 'completion') { $worker += "`nStart-Sleep -Seconds 60" }
+        $worker = $worker.Replace('__RELEASE_PATH__', $releasePath).Replace('__READY_PATH__', $readyPath)
+        if ($mode -eq 'completion') { $worker += "`nWrite-Error 'test-worker-error'" }
+        elseif ($mode -ne 'clean-exit') { $worker += "`nStart-Sleep -Seconds 60" }
         $worker | Set-Content -LiteralPath $fixture -Encoding UTF8
         $trayCode = $traySource.Replace("`$watcher = Join-Path `$PSScriptRoot 'pr-watcher.ps1'", '$watcher = "' + $fixture + '"')
         if ($trayCode.Contains("Join-Path `$PSScriptRoot 'pr-watcher.ps1'")) {
@@ -62,14 +80,14 @@ Write-Error 'test-worker-error'
             $trayCode = $trayCode.Replace('Start-Process wt.exe -ArgumentList', 'Capture-Terminal -ArgumentList')
             $trayCode = $trayCode.Replace('function Open-WatcherLogs {', $capture + 'function Open-WatcherLogs {')
             $control = @'
-    $testClock = [Diagnostics.Stopwatch]::StartNew()
     $timer.Add_Tick({
-        if ($testClock.Elapsed.TotalSeconds -ge 10) {
+        if (Test-Path -LiteralPath '__READY_PATH__') {
             $openLogs.PerformClick()
             $stop.PerformClick()
         }
     })
 '@
+            $control = $control.Replace('__READY_PATH__', $readyPath)
             $trayCode = $trayCode.Replace('    $timer.Start()', $control + "`n    `$timer.Start()")
         }
         $trayCode | Set-Content -LiteralPath $tray -Encoding UTF8
@@ -83,23 +101,37 @@ Write-Error 'test-worker-error'
         $parentError = Join-Path $case 'launcher.err.log'
         $parent = Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$launcher`"" `
             -WindowStyle Hidden -RedirectStandardOutput $parentOutput -RedirectStandardError $parentError -PassThru
-        if (-not $parent.WaitForExit(3000)) { throw 'Launcher did not return before the fixture finished.' }
+        if (-not $parent.WaitForExit(30000)) { throw 'Launcher did not return while the fixture waited for its release signal.' }
         $errors = Get-Content -LiteralPath $parentError -Raw
         if ($errors) { throw "Launcher failed: $errors" }
         $info = Get-Content -LiteralPath $parentOutput -Raw | ConvertFrom-Json
         $child = Get-Process -Id $info.PID -ErrorAction Stop
         if ($child.HasExited) { throw 'Tray host did not survive launcher exit.' }
+        Set-Content -LiteralPath (Join-Path $case 'launcher-returned.signal') -Value 'returned'
         if ($mode -eq 'host-stop') {
-            Start-Sleep -Seconds 10
+            $deadline = [DateTime]::UtcNow.AddSeconds(45)
+            while (-not (Test-Path -LiteralPath (Join-Path $case 'worker-ready.signal'))) {
+                if ([DateTime]::UtcNow -ge $deadline) { throw 'Fixture worker did not reach its ready signal.' }
+                Start-Sleep -Milliseconds 100
+            }
+            # Let the tray forward the final marker before forced termination.
+            Start-Sleep -Seconds 2
             Stop-Process -Id $child.Id -ErrorAction Stop
         }
-        Wait-Process -Id $child.Id -Timeout 25 -ErrorAction Stop
+        Wait-Process -Id $child.Id -Timeout 120 -ErrorAction Stop
         $stdout = Get-Content -LiteralPath $info.Stdout -Raw
         $stderr = Get-Content -LiteralPath $info.Stderr -Raw
         if ($stderr) { throw "Tray host failed: $stderr" }
-        foreach ($text in @('tray ready', 'started', 'after-launcher-exit', 'test-worker-error', 'interval=60 model=azure/gpt-6.1-sol#high')) {
+        foreach ($text in @('tray ready', 'started', 'after-launcher-exit', 'interval=60 model=azure/gpt-6.1-sol#high')) {
             if (-not $stdout.Contains($text)) { throw "Missing $text in fixture logs: $stdout" }
         }
+        if ($mode -in @('completion', 'clean-exit')) {
+            if ([regex]::Matches($stdout, 'fixture-repair-requested').Count -ne 1 -or
+                $stdout -notmatch 'fixture-repair-submitted' -or $stdout -notmatch 'worker ended') {
+                throw 'Worker exit must request exactly one repair and wait for its submission.'
+            }
+            if ($mode -eq 'completion' -and $stdout -notmatch 'test-worker-error') { throw 'Worker error output is missing.' }
+        } elseif ($stdout -match 'fixture-repair-requested') { throw 'Intentional stop must not request repair.' }
         if ($stdout -notmatch 'worker-pid=(\d+)') { throw 'Missing fixture worker PID.' }
         $workerProcess = Get-Process -Id ([int]$Matches[1]) -ErrorAction SilentlyContinue
         if ($workerProcess -and -not $workerProcess.WaitForExit(5000)) { throw 'Fixture worker leaked after tray exit.' }
