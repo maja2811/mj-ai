@@ -6,18 +6,18 @@
       "model": "github-copilot/gpt-6.1-sol"
     },
     "general": {
-      "model": "github-copilot/gpt-6-luna#high"
+      "model": "github-copilot/claude-haiku-5.5#high"
     },
     "explore": {
-      "model": "github-copilot/gpt-6-luna#high"
+      "model": "github-copilot/claude-haiku-5.5#high"
     },
     "title": {
-      "model": "github-copilot/gpt-6-luna#high"
+      "model": "github-copilot/claude-haiku-5.5#high"
     },
     "jira": {
       "description": "Jira and Confluence work via the Atlassian MCP: searching, reading, creating, updating, transitioning and commenting on issues, and reading or writing Confluence pages. This is the only agent with Atlassian tools enabled.",
       "mode": "subagent",
-      "model": "github-copilot/gpt-6-luna#high",
+      "model": "github-copilot/claude-haiku-5.5#high",
       "permissions": [
         { "action": "atlassian_*", "resource": "*", "effect": "allow" }
       ]
