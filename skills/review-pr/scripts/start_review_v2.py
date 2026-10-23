@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+from urllib.parse import quote
 
 
 def api(method, path, body=None):
@@ -117,17 +118,35 @@ def start_watcher_repair(*, directory, model, failure_path):
 
 def review_status(session_id):
     session = api("get", f"/api/session/{session_id}")["data"]
-    # time.idle keeps its old value after a session resumes (e.g. when a background
-    # subagent finishes), so trust the newest message and running children instead.
-    newest = api("get", f"/api/session/{session_id}/message?limit=1")["data"]
-    children = api("get", f"/api/session?parentID={session_id}")["data"]
-    if newest and newest[0].get("type") == "idle" and all(c["time"].get("idle") for c in children):
-        return "done" if session.get("outcome") == "succeeded" else session.get("outcome") or "interrupted"
+    # A pending form/permission must win over an earlier idle/success outcome.
     if api("get", f"/api/session/{session_id}/permission")["data"]:
         return "blocked"
     if api("get", f"/api/session/{session_id}/form")["data"]:
         return "blocked"
-    return "working"
+    # time.idle keeps its old value after a session resumes (e.g. when a background
+    # subagent finishes), so trust the newest message and running children instead.
+    newest = api("get", f"/api/session/{session_id}/message?limit=1&order=desc")["data"]
+    if not newest or newest[0].get("type") != "idle":
+        return "working"
+    cursor = None
+    seen_cursors = set()
+    while True:
+        path = f"/api/session?parentID={session_id}"
+        if cursor:
+            path += f"&cursor={quote(cursor, safe='')}"
+        response = api("get", path)
+        if any(review_status(child["id"]) in {"working", "blocked"} for child in response["data"]):
+            return "working"
+        cursor = response["cursor"]["next"]
+        if cursor is None:
+            break
+        if not isinstance(cursor, str) or not cursor or cursor in seen_cursors:
+            raise ValueError("Invalid child-session pagination cursor")
+        seen_cursors.add(cursor)
+    outcome = newest[0].get("outcome", session.get("outcome"))
+    if outcome == "succeeded" and not newest[0].get("error"):
+        return "done"
+    return "interrupted" if outcome in {None, "interrupted"} else "failed"
 
 
 def main():

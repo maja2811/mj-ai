@@ -112,9 +112,17 @@ function Get-ReviewablePrs {
 }
 
 function Mark-Reviewed {
-    param([string]$Url)
+    param([string]$Url, [string]$HeadSha)
     $py = Get-PythonExe
-    & $py $PollScript --mark-reviewed $Url 2>$null | Out-Null
+    & $py $PollScript --mark-reviewed $Url --head-sha $HeadSha 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Failed to save baseline for $Url" }
+}
+
+function Mark-Started {
+    param([string]$Url, [string]$HeadSha, [string]$SessionId, [int]$Attempt)
+    $py = Get-PythonExe
+    & $py $PollScript --mark-started $Url --head-sha $HeadSha --session-id $SessionId --attempt $Attempt 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Failed to track launched review $SessionId for $Url" }
 }
 
 function Read-ActiveReviews {
@@ -150,13 +158,13 @@ function Save-ActiveReviews {
 }
 
 function Start-ReviewSession {
-    param([string]$Url, [string]$Repo, [int]$Number, [string]$Title, [string]$HeadSha)
+    param([string]$Url, [string]$Repo, [int]$Number, [string]$Title, [string]$HeadSha, [int]$Attempt = 1)
 
     Write-Log "Launching review session: $Repo#$Number - $Title"
 
-    # The head SHA in the title gives each new commit its own stable session ID;
-    # retries for the same commit reuse the same session instead of duplicating it.
+    # Each head/attempt gets a stable ID; uncertain launch retries reuse it.
     $sessionTitle = "PR Review: $Repo#$Number @$($HeadSha.Substring(0, [Math]::Min(7, $HeadSha.Length)))"
+    if ($Attempt -gt 1) { $sessionTitle += " (retry $($Attempt - 1))" }
     $py = Get-PythonExe
     try {
         $out = & $py $StartScript --directory $ReviewDir --title $sessionTitle --model $OpencodeModel --url $Url
@@ -176,10 +184,8 @@ function Start-ReviewSession {
     $script:ActiveReviews[$sessionId] = $sessionTitle
     Save-ActiveReviews
 
-    # Marking reviewed at launch time (not completion) prevents relaunching the
-    # same head commit on the next poll. A new commit produces a new head SHA,
-    # which poll_reviews.py will surface again as a fresh review-worthy PR.
-    Mark-Reviewed -Url $Url
+    # The poller checks this session's outcome; a launch is not a completed review.
+    Mark-Started -Url $Url -HeadSha $HeadSha -SessionId $sessionId -Attempt $Attempt
 }
 
 function Open-ReadyReviews {
@@ -211,7 +217,7 @@ function Invoke-PollCycle {
         return
     }
     foreach ($pr in $prs) {
-        Start-ReviewSession -Url $pr.url -Repo $pr.repo -Number $pr.number -Title $pr.title -HeadSha $pr.head_sha
+        Start-ReviewSession -Url $pr.url -Repo $pr.repo -Number $pr.number -Title $pr.title -HeadSha $pr.head_sha -Attempt $pr.attempt
     }
 }
 
@@ -237,7 +243,7 @@ function Invoke-BaselineSeed {
     Write-Log "Seeding $($prs.Count) existing pending review(s) as baseline (no sessions launched):"
     foreach ($pr in $prs) {
         Write-Log "  - $($pr.repo)#$($pr.number): $($pr.title)"
-        Mark-Reviewed -Url $pr.url
+        Mark-Reviewed -Url $pr.url -HeadSha $pr.head_sha
     }
     Write-Log "Baseline seeding complete. Only NEW or updated PRs from now on will launch a review session."
 }

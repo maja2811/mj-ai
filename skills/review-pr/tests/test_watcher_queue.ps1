@@ -35,9 +35,16 @@ function Test-Python {
     return '{"session_id":"ses_fixture1"}'
 }
 function Mark-Reviewed {
-    param($Url)
+    param($Url, $HeadSha)
+    throw 'Review launch must not be marked completed or baseline.'
+}
+function Mark-Started {
+    param($Url, $HeadSha, $SessionId, $Attempt)
     $script:markerCalls++
-    if (-not (Read-ActiveReviews).ContainsKey('ses_fixture1')) { throw 'Head marked before queue was saved.' }
+    if (-not (Read-ActiveReviews).ContainsKey($SessionId)) { throw 'Launch tracked before queue was saved.' }
+    $script:trackedHead = $HeadSha
+    $script:trackedSession = $SessionId
+    $script:trackedAttempt = $Attempt
 }
 function Get-ReviewablePrs { $script:pollCalls++; @() }
 function Start-Process {
@@ -60,7 +67,10 @@ $script:reviewStatus = 'working'
 $script:failTerminal = $false
 Start-ReviewSession -Url 'https://example.test/pr/1' -Repo "fixture-$([char]0xe6)" -Number 1 -Title 'Fixture' -HeadSha 'abcdef1234'
 $expectedTitle = $script:ActiveReviews['ses_fixture1']
-if ($script:startCalls -ne 1 -or $script:markerCalls -ne 1) { throw 'Fixture review launch was not saved and marked.' }
+if ($script:startCalls -ne 1 -or $script:markerCalls -ne 1) { throw 'Fixture review launch was not saved and tracked.' }
+if ($script:trackedHead -ne 'abcdef1234' -or $script:trackedSession -ne 'ses_fixture1' -or $script:trackedAttempt -ne 1) {
+    throw 'Tracking did not use the exact launched head/session/attempt.'
+}
 
 # Simulate a restart: discard memory, load only the file, and do not start a new review.
 $script:ActiveReviews = @{}
@@ -97,7 +107,14 @@ foreach ($status in @('blocked', 'done')) {
 }
 if ($script:startCalls -ne 1) { throw 'Recovery relaunched a review.' }
 if (@(Get-ChildItem -LiteralPath $root -Filter '*.tmp').Count) { throw 'Queue writes left temporary files.' }
-Write-Output 'PASS: persisted before marking, restart restore, working/blocked/done status, terminal retry and no duplicate review/tab.'
+Write-Output 'PASS: persisted before tracking (not completion), exact head/session/attempt, restart restore, terminal retry and no duplicate review/tab.'
+
+# A bounded retry gets a different, deterministic title/session key.
+Start-ReviewSession -Url 'https://example.test/pr/1' -Repo 'fixture' -Number 1 -Title 'Fixture' -HeadSha 'abcdef1234' -Attempt 2
+if ($script:ActiveReviews['ses_fixture1'] -ne 'PR Review: fixture#1 @abcdef1 (retry 1)' -or $script:trackedAttempt -ne 2) {
+    throw 'Retry did not get its own stable title and attempt number.'
+}
+Write-Output 'PASS: retries use a distinct deterministic session title and tracked attempt.'
 
 # A failed queue write must leave the PR head unmarked so the launch can retry.
 $goodPath = $ActiveReviewsPath
@@ -112,6 +129,33 @@ try {
 if (-not $failed -or $script:markerCalls -ne $before) { throw 'Failed queue write marked a head as reviewed.' }
 $ActiveReviewsPath = $goodPath
 Write-Output 'PASS: failed queue writes do not mark the PR head.'
+
+# Exercise the real marker wrappers with a fake Python command, not live state.
+& {
+    foreach ($name in @('Mark-Reviewed', 'Mark-Started')) {
+        $function = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true)
+        . ([scriptblock]::Create($function.Extent.Text))
+    }
+    $PollScript = 'fake-poll.py'
+    $script:markerExitCode = 0
+    function Test-Python {
+        $script:markerArguments = $args
+        $global:LASTEXITCODE = $script:markerExitCode
+    }
+    Mark-Started -Url 'https://example.test/pr/1' -HeadSha 'exact-head' -SessionId 'ses_fixture1' -Attempt 2
+    if (($script:markerArguments -join '|') -ne 'fake-poll.py|--mark-started|https://example.test/pr/1|--head-sha|exact-head|--session-id|ses_fixture1|--attempt|2') {
+        throw 'Launch marker omitted the captured head/session/attempt.'
+    }
+    Mark-Reviewed -Url 'https://example.test/pr/1' -HeadSha 'baseline-head'
+    if (($script:markerArguments -join '|') -ne 'fake-poll.py|--mark-reviewed|https://example.test/pr/1|--head-sha|baseline-head') {
+        throw 'Baseline marker refetched rather than recording the captured head.'
+    }
+    $script:markerExitCode = 1
+    $failed = $false
+    try { Mark-Started -Url 'fixture' -HeadSha 'exact-head' -SessionId 'ses_fixture1' -Attempt 1 } catch { $failed = $true }
+    if (-not $failed) { throw 'A failed launch-state write was ignored.' }
+}
+Write-Output 'PASS: real marker CLI arguments preserve the captured head/session/attempt and report failed writes.'
 
 foreach ($invalid in @('not JSON', '[]', '{"wrong-id":"title"}', '{"ses_fixture1":null}')) {
     $invalid | Set-Content -LiteralPath $ActiveReviewsPath -Encoding UTF8
