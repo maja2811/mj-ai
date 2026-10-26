@@ -200,14 +200,14 @@
     {
       "id": "eval-013",
       "prompt": "Verify the automatic PR watcher setup without starting it. Inspect the bundled review-pr skill files scripts/pr-watcher.ps1, scripts/poll_reviews.py and scripts/start_review_v2.py and report: the default model and -OpencodeModel override, the review session working directory, the state file, how the OpenCode V2 session and prompt are launched, how the terminal tab is opened, whether it starts the old FastAPI backend or /api/review/start, and how the reasoning variant is passed.",
-      "expected_output": "The skill should verify the bundled PR watcher defaults to azure/gpt-6.1-sol#high and starts tagged OpenCode V2 sessions through the API, including the high reasoning variant in the session model.",
+      "expected_output": "The skill should verify the bundled PR watcher defaults to azure/gpt-6.1-sol#xhigh and starts tagged OpenCode V2 sessions through the API, including the Extra High reasoning variant in the session model.",
       "files": [],
       "expectations": [
         "The workflow inspects scripts/pr-watcher.ps1 under the review-pr skill rather than the old bi-dlh-pr-reviewer repository or the macOS pr-watcher.sh.",
         "The workflow confirms scripts/start_review_v2.py creates a tagged session through /api/session, then submits a prompt with the review-pr skill through /api/session/<sessionID>/prompt; it does not start the old FastAPI backend or /api/review/start.",
-        "The workflow confirms the default PR watcher model is azure/gpt-6.1-sol#high unless -OpencodeModel overrides it.",
+        "The workflow confirms the default PR watcher model is azure/gpt-6.1-sol#xhigh unless -OpencodeModel overrides it.",
         "The workflow confirms the review runs in the background, the windows-toasts plugin notifies when it is ready, and only then does the watcher open a Windows Terminal tab attached with opencode.cmd --session <sessionID>.",
-        "The workflow explains that high reasoning is passed as variant: high in the V2 session model, not through a TUI --variant flag.",
+        "The workflow explains that Extra High reasoning is passed as variant: xhigh in the V2 session model, not through a TUI --variant flag.",
         "The workflow confirms the review session directory is the review-pr skill directory (~/.config/opencode/skills/review-pr) and the state file is .review-poll-state.json under that directory, deduplicated by PR head SHA."
       ]
     },

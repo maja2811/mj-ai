@@ -1,7 +1,7 @@
 # Hidden tray host for the existing polling script. No scheduled task or service.
 param(
     [ValidateRange(1, 2147483647)][int]$PollInterval = 60,
-    [string]$OpencodeModel = 'azure/gpt-6.1-sol#high',
+    [string]$OpencodeModel = 'azure/gpt-6.1-sol#xhigh',
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$LogPath,
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$ErrorLogPath
 )

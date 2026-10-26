@@ -14,7 +14,7 @@ import start_review_v2 as starter
 
 def test_review_and_repair_sessions():
     directory = r"C:\setup repo's\opencode"
-    model = "azure/gpt-6.1-sol#high"
+    model = "azure/gpt-6.1-sol#xhigh"
     title, url = "PR Review: example/repo#1 @1234567", "https://github.com/example/repo/pull/1"
     key = hashlib.sha256(json.dumps([directory, title, url]).encode()).hexdigest()[:32]
     session_id = f"ses_{key}"
@@ -23,7 +23,7 @@ def test_review_and_repair_sessions():
         assert api.call_args_list == [
             call("post", "/api/session", {
                 "id": session_id, "title": title, "location": {"directory": directory},
-                "model": {"providerID": "azure", "id": "gpt-6.1-sol", "variant": "high"},
+                "model": {"providerID": "azure", "id": "gpt-6.1-sol", "variant": "xhigh"},
                 "metadata": {"prWatcher": {"url": url}},
             }),
             call("post", f"/api/session/{session_id}/prompt", {
@@ -48,7 +48,7 @@ def test_review_and_repair_sessions():
         create, prompt = [entry.args[2] for entry in api.call_args_list]
         assert create["location"] == {"directory": directory}
         assert create["title"] == "PR watcher repair"
-        assert create["model"] == {"providerID": "azure", "id": "gpt-6.1-sol", "variant": "high"}
+        assert create["model"] == {"providerID": "azure", "id": "gpt-6.1-sol", "variant": "xhigh"}
         assert create["metadata"] == {"prWatcher": {"failureReport": str(report_path)}}
         assert "skills" not in prompt
         assert report["failure"] in prompt["text"].replace('\\"', '"')

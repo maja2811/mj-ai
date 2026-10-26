@@ -17,6 +17,7 @@ def test_session_model_rendering():
         for selected, expected in [
             ({"providerID": "azure", "id": "gpt-6-sol", "variant": "high"}, "GPT 6 Sol (high)"),
             ({"providerID": "azure", "id": "gpt-6.1-sol", "variant": "high"}, "GPT 6.1 Sol (high)"),
+            ({"providerID": "azure", "id": "gpt-6.1-sol", "variant": "xhigh"}, "GPT 6.1 Sol (xhigh)"),
             ({"providerID": "other", "id": "custom", "variant": "low"}, "custom (low)"),
             ({"providerID": "other", "id": "custom"}, "custom"),
         ]:

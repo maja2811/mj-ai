@@ -373,8 +373,8 @@ python ~/.config/opencode/skills/review-pr/scripts/render_review_markdown.py \
   --session-id "<CURRENT_REVIEW_SESSION_ID>"
 ```
 
-- Pass the current review session ID from the watcher prompt or session context. The renderer reads its model and reasoning variant from OpenCode and writes a provider-free label, for example `**Used model:** GPT 6.1 Sol (high)` for `azure/gpt-6.1-sol#high`. It formats GPT model IDs as readable names and puts the reasoning variant in parentheses, omitting the parentheses when none is set. Use the session that performed the review, not a parent or unrelated session. If the model was changed during the review, this identifies the selected model at rendering time.
-- For manual runs where the session ID is not known, or for rendering outside OpenCode, pass `--model "<ACTUAL_MODEL_AND_REASONING_LEVEL>"` explicitly, for example `--model "GPT 6.1 Sol (high)"`. There is no hardcoded model fallback; an unavailable session or missing model must be resolved before rendering.
+- Pass the current review session ID from the watcher prompt or session context. The renderer reads its model and reasoning variant from OpenCode and writes a provider-free label, for example `**Used model:** GPT 6.1 Sol (xhigh)` for `azure/gpt-6.1-sol#xhigh`. It formats GPT model IDs as readable names and puts the reasoning variant in parentheses, omitting the parentheses when none is set. Use the session that performed the review, not a parent or unrelated session. If the model was changed during the review, this identifies the selected model at rendering time.
+- For manual runs where the session ID is not known, or for rendering outside OpenCode, pass `--model "<ACTUAL_MODEL_AND_REASONING_LEVEL>"` explicitly, for example `--model "GPT 6.1 Sol (xhigh)"`. There is no hardcoded model fallback; an unavailable session or missing model must be resolved before rendering.
 
 Final coherence pass:
 
@@ -481,7 +481,7 @@ Launch rules:
 Defaults:
 
 - Poll interval: `60` seconds, override with `-PollInterval <seconds>`.
-- OpenCode V2 model: `azure/gpt-6.1-sol#high`, override with `-OpencodeModel <provider/model#variant>`. The variant is set on the session through the API, not through a TUI flag.
+- OpenCode V2 model: `azure/gpt-6.1-sol#xhigh` (Extra High thinking), override with `-OpencodeModel <provider/model#variant>`. The variant is set on the session through the API, not through a TUI flag.
 - `scripts/start_review_v2.py` creates the session through `opencode2 api post /api/session` (title `PR Review: <repo>#<number> @<short-sha>`, model, skill directory as location, watcher metadata), then submits the prompt with the `review-pr` skill through `/api/session/<sessionID>/prompt`, including the session ID for `render_review_markdown.py --session-id`. Session and message IDs are derived from directory, title, and URL, so retrying an uncertain launch reuses the same session. A confirmed failed/interrupted run gets one fresh session with ` (retry 1)` appended to the title; further failures require manual attention rather than an endless restart loop. A new commit starts again at attempt 1.
 - Single-cycle mode: pass `-Once` to run one poll cycle and exit instead of looping. Sessions still run and toast when ready, but no tab is opened; attach with `opencode --session <sessionID>`.
 - Baseline mode: pass `-Baseline` to seed existing pending PRs as already-seen without launching any sessions.

@@ -122,7 +122,7 @@ Set-Content -LiteralPath '__READY_PATH__' -Value 'ready'
         $stdout = Get-Content -LiteralPath $info.Stdout -Raw
         $stderr = Get-Content -LiteralPath $info.Stderr -Raw
         if ($stderr) { throw "Tray host failed: $stderr" }
-        foreach ($text in @('tray ready', 'started', 'after-launcher-exit', 'interval=60 model=azure/gpt-6.1-sol#high')) {
+        foreach ($text in @('tray ready', 'started', 'after-launcher-exit', 'interval=60 model=azure/gpt-6.1-sol#xhigh')) {
             if (-not $stdout.Contains($text)) { throw "Missing $text in fixture logs: $stdout" }
         }
         if ($mode -in @('completion', 'clean-exit')) {

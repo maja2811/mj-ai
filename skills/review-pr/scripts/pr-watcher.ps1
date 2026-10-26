@@ -18,7 +18,7 @@
     Seconds between polls. Default 60.
 
 .PARAMETER OpencodeModel
-    Session model as provider/model#variant. Default azure/gpt-6.1-sol#high.
+    Session model as provider/model#variant. Default azure/gpt-6.1-sol#xhigh.
 
 .PARAMETER Once
     Run a single poll cycle and exit, instead of looping forever.
@@ -42,7 +42,7 @@
 
 param(
     [int]$PollInterval = 60,
-    [string]$OpencodeModel = "azure/gpt-6.1-sol#high",
+    [string]$OpencodeModel = "azure/gpt-6.1-sol#xhigh",
     [switch]$Once,
     [switch]$Baseline
 )
