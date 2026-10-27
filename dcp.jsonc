@@ -2,7 +2,7 @@
   // Dynamic Context Pruning - https://github.com/Tarquinen/opencode-dynamic-context-pruning
   "$schema": "https://raw.githubusercontent.com/Opencode-DCP/opencode-dynamic-context-pruning/master/dcp.schema.json",
 
-  "enabled": false,
+  "enabled": true,
 
   // Pin the version deliberately rather than tracking npm latest.
   "autoUpdate": false,
