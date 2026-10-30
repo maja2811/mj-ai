@@ -56,7 +56,7 @@ def load_state() -> State:
                 not re.fullmatch(r"[a-fA-F0-9]{40,64}", str(record.get("head_sha", ""))) or
                 not re.fullmatch(r"ses_[a-zA-Z0-9]+", str(record.get("session_id", ""))) or
                 type(record.get("attempt")) is not int or not 1 <= record["attempt"] <= MAX_ATTEMPTS or
-                record.get("status") not in {"started", "working", "blocked", "completed", "failed", "interrupted"}):
+                record.get("status") not in {"started", "working", "blocked", "completed", "failed", "interrupted", "queued"}):
             raise ValueError(f"Invalid review poll state for {url}")
     return state
 
@@ -145,7 +145,7 @@ def refresh_sessions(state: State) -> dict[str, str]:
     statuses = {}
     changed = False
     for url, record in state.items():
-        if isinstance(record, str) or record["status"] == "completed":
+        if isinstance(record, str) or record["status"] in {"completed", "queued"}:
             continue
         try:
             status = review_status(record["session_id"])
@@ -189,7 +189,7 @@ def find_reviewable_prs(state: State) -> list[dict[str, Any]]:
         if isinstance(record, dict) and record["head_sha"] == head_sha:
             if record["status"] == "completed":
                 continue
-            status = statuses.get(pr_url)
+            status = "queued" if record["status"] == "queued" else statuses.get(pr_url)
             if status in {None, "working", "blocked", "done"}:
                 continue
             if record["attempt"] >= MAX_ATTEMPTS:
@@ -216,6 +216,19 @@ def find_reviewable_prs(state: State) -> list[dict[str, Any]]:
 def mark_reviewed(state: State, pr_url: str, head_sha: str) -> None:
     """Mark a PR as reviewed at a specific commit SHA."""
     state[pr_url] = head_sha
+    save_state(state)
+
+
+def requeue_review(state: State, pr_url: str) -> None:
+    """Queue one explicit retry after the caller has stopped the previous review."""
+    record = state.get(pr_url)
+    if not isinstance(record, dict) or record["status"] not in {"completed", "failed", "interrupted", "queued"}:
+        raise ValueError("Requeue requires a tracked, stopped review")
+    if record["attempt"] >= MAX_ATTEMPTS:
+        raise ValueError("Review retry limit reached; resume the existing session manually")
+    if record["status"] == "queued":
+        return
+    state[pr_url] = {**record, "status": "queued"}
     save_state(state)
 
 
@@ -288,12 +301,23 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--head-sha", help="Exact head captured by the poll, without fetching a newer head.")
     parser.add_argument("--session-id")
     parser.add_argument("--attempt", type=int, default=1)
+    parser.add_argument("--requeue", metavar="PR_URL", help="Queue a stopped review for the next watcher poll without deleting its history.")
     return parser
 
 
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.requeue:
+        if args.mark_started or args.mark_reviewed or args.head_sha or args.session_id:
+            parser.error("--requeue cannot be combined with marking options")
+        try:
+            requeue_review(load_state(), args.requeue)
+        except ValueError as exc:
+            parser.error(str(exc))
+        eprint(f"[poll] Queued {args.requeue} for the next watcher poll")
+        return
 
     if args.mark_started:
         if args.mark_reviewed or not args.head_sha or not args.session_id:

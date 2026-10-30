@@ -90,6 +90,46 @@ def test_persisted_outcomes_and_retry_limit():
         assert poller.load_state()[URL]["status"] == "completed"
 
 
+def test_explicit_requeue_preserves_history_until_next_launch():
+    root = Path(os.environ["LOCALAPPDATA"]) / "Temp" / "opencode"
+    with TemporaryDirectory(prefix="watcher requeue ", dir=root) as temporary, \
+            patch.object(poller, "STATE_FILE", Path(temporary) / "state.json"), \
+            patch.object(poller, "get_pending_prs", return_value=[PR]), \
+            patch.object(poller, "get_head_sha", return_value=SHA) as head, \
+            patch.object(poller, "review_status") as status:
+        original = {"head_sha": SHA, "session_id": "ses_first", "attempt": 1, "status": "completed"}
+        poller.save_state({URL: original, "https://github.com/example/other/pull/2": NEXT_SHA})
+        args = ["poll_reviews.py", "--requeue", URL]
+        with patch.object(sys, "argv", args), redirect_stderr(StringIO()):
+            poller.main()
+        head.assert_not_called()
+        status.assert_not_called()
+        state = poller.load_state()
+        assert state[URL] == {**original, "status": "queued"}
+        assert state["https://github.com/example/other/pull/2"] == NEXT_SHA
+        for _ in range(2):
+            poller.requeue_review(state, URL)
+            assert poller.find_reviewable_prs(poller.load_state())[0]["attempt"] == 2
+            assert poller.load_state()[URL]["status"] == "queued"
+            status.assert_not_called()  # The old outcome must not consume the retry.
+        head.return_value = NEXT_SHA
+        assert poller.find_reviewable_prs(poller.load_state())[0]["attempt"] == 1
+        head.return_value = SHA
+        poller.mark_started(poller.load_state(), URL, SHA, "ses_retry", 2)
+        assert poller.load_state()[URL]["session_id"] == "ses_retry"
+        status.return_value = "working"
+        assert poller.find_reviewable_prs(poller.load_state()) == []
+        for record in (None, SHA, {**original, "status": "working"}, {**original, "attempt": 2}):
+            before = poller.STATE_FILE.read_bytes()
+            try:
+                poller.requeue_review({URL: record}, URL)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("Unsafe or exhausted review was requeued")
+            assert poller.STATE_FILE.read_bytes() == before
+
+
 def test_state_and_cli_fail_closed():
     root = Path(os.environ["LOCALAPPDATA"]) / "Temp" / "opencode"
     with TemporaryDirectory(prefix="watcher CLI ", dir=root) as temporary, \
@@ -170,6 +210,7 @@ def test_status_precedence_and_live_children():
 
 if __name__ == "__main__":
     test_persisted_outcomes_and_retry_limit()
+    test_explicit_requeue_preserves_history_until_next_launch()
     test_state_and_cli_fail_closed()
     test_status_precedence_and_live_children()
     print("PASS: exact-head tracking, completion, blocked/running dedup, bounded retries, legacy state, atomic failures and session status")
