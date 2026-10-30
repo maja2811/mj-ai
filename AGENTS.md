@@ -42,6 +42,25 @@ Never create files named `CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`, `LPT0`–`
 case, with or without extension) — they route to a device or leave undeletable ghost
 files. For a null/discard target, redirect output in code instead of writing a `nul` file.
 
+## Local Access
+
+- `AZDO_PYPI_DSB_MODULES_TOKEN` (user env var) is an Azure DevOps PAT for org `dsbdk`. Besides
+  the private package feed it has **Build: read & execute** and **Artifacts: read**. Use it for
+  the Azure DevOps REST API with basic auth `":" + token`. Never print it.
+- Trigger a pipeline run (ask first, it deploys):
+  `POST https://dev.azure.com/dsbdk/{projectId}/_apis/pipelines/{pipelineId}/runs?api-version=7.1`
+  with body `{"resources":{"repositories":{"self":{"refName":"refs/heads/<branch>"}}},"templateParameters":{"deploy_to_dev":"true"}}`.
+  Look up IDs with `GET .../_apis/pipelines?api-version=7.1&$top=500`. Project
+  `DSB Azure - Data Lakehouse Projects` = `08c4e2de-f993-4d1b-b873-9b06da982aa8`. CSF pipelines:
+  7779 `adb-ci-cd-bi-dlh-commercial-csf` (deploy), 7782 CI validation, 7780 cleanup, 7781 UC
+  permissions.
+- No Azure CLI is installed. The `dlh-dmt-helper` library on DEV clusters is set by the deploy
+  pipeline, and I have no rights to change cluster libraries. To test a newer helper before the
+  deploy, install it notebook-scoped (`%pip install dlh-dmt-helper==X`) in a wrapper notebook and
+  `%run` the real notebook in the same session.
+- Databricks OAuth profiles expire. If `databricks auth token --profile <p>` fails, run
+  `databricks auth login --profile <p>` (opens a browser) before starting long work.
+
 ## Governance & References
 
 Authoritative source: `DanskeStatsbaner/bi-dlh-documentation` on `main`. Start at

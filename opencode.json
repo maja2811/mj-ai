@@ -98,7 +98,5 @@
     { "action": "shell", "resource": "git -C * push *", "effect": "ask" },
     { "action": "external_directory", "resource": "~/.local/share/opencode/.review-pr-tmp/*", "effect": "allow" }
   ],
-  "plugins": [
-    "@tarquinen/opencode-dcp@3.2.0"
-  ]
+  "plugins": []
 }
