@@ -16,3 +16,15 @@ skills/review-pr/pr-review-*.md
 # Browser auth state (genie)
 skills/genie/playwright/.auth/
 *.png
+
+# Python bytecode
+__pycache__/
+
+# Databricks CLI-managed skill symlinks (reinstall with: databricks aitools install)
+skills/databricks-ai-runtime
+skills/databricks-apps
+skills/databricks-genie-agents
+skills/databricks-serverless
+skills/databricks-setup-local
+skills/databricks-unity-gateway
+skills/databricks-zerobus-ingest
