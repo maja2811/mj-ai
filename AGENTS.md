@@ -28,6 +28,8 @@ skills, loaded on demand.
 - **pytest scope** — never run the full suite unassisted. List the available test
   files/directories and let the user choose.
 - **`review-local`** — never start it implicitly.
+- **Jira and Confluence writes** — draft comments, updates, transitions, and new issues
+  for my review. Post only after approval or when I asked for that exact change.
 - **Commits and pushes** — ask before `git commit` or `git push`, every time. A rule
   requiring work to end committed is not permission to decide the work is finished.
   Run git through the shell `workdir` parameter, never `git -C`, so permission
@@ -141,18 +143,24 @@ skip a separate plan for trivial changes.
 
 1. **Explore** — understand before acting. Inspect the repo, docs, dependencies, external
    systems, constraints, and existing behaviour as needed. Load applicable domain skills
-   before relying on generic knowledge. Search narrowly and stop once the problem and the
-   change boundary are clear.
+   before relying on generic knowledge. If the task has a Jira ticket, read it via the
+   `jira` agent; its goal and acceptance criteria are the yardstick for the rest of the
+   loop. Search narrowly and stop once the problem and the change boundary are clear.
 2. **Plan** — state the root cause or intended behaviour, smallest viable approach,
-   affected surfaces, acceptance criteria, and validation scope. Surface uncertainty
-   before implementing.
+   affected surfaces, acceptance criteria, and validation scope. For bugs and incidents,
+   show the evidence behind the diagnosis, your confidence, and what else could explain
+   it. For non-trivial work, include a rough effort estimate and wait for my approval
+   before implementing. Surface uncertainty early.
 3. **Implement** — smallest correct diff on the current branch, reusing existing helpers
    and patterns. No role-play agents or abstractions without a concrete capability,
    permission boundary, independent context, or parallelism benefit.
-4. **Test** — smallest relevant validation first, broader checks when justified. Ask which
-   pytest scope to run before executing pytest. Report skipped checks and blockers.
-5. **Review and iterate** — inspect the diff and validation results, correct what you
-   find, and re-run the relevant checks before calling the task complete.
+4. **Test** — smallest relevant validation first, broader checks when justified: unit and
+   integration tests, then a DEV Databricks run with DQ checks where the change affects
+   data. Report which checks ran with their results, and which could not run and why.
+5. **Review and iterate** — inspect the diff and validation results against the
+   acceptance criteria, correct what you find, and re-run the relevant checks after each
+   fix. If implementation or review exposes a flaw in the plan, stop and revise the plan
+   with me instead of patching around it.
 
 Subagents are optional. Use them when work is genuinely independent or benefits from
 isolation — parallel repo exploration, research, test design, independent review —
@@ -160,8 +168,9 @@ otherwise stay with one primary agent for sequential work. Give each subagent a 
 objective, the required file paths, and the constraints, and ask for concise
 evidence-based output. The primary agent owns synthesis, edits, and final verification.
 
-`review-local` is a final review step after implementation and tests, never a replacement
-for understanding, planning, or implementing. Always ask before invoking it.
+`review-local` is an optional final step after implementation and tests, never a
+replacement for understanding, planning, or implementing. Opened PRs get a further AI
+review (`review-pr`), and a person reviews every PR. Never merge to `main` yourself.
 
 ## Planning and Audit Modes
 
