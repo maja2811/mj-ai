@@ -73,9 +73,11 @@ asked. If it is unclear which checkout or worktree to use, ask.
    `review-local` on the unpushed branch. Neither replaces the loop. A person reviews
    every PR. Never merge to `main` yourself.
 
-Subagents only for independent work (parallel exploration, research, independent review);
-sequential work stays with one agent. The primary agent makes all edits and verifies
-subagent findings and executor diffs before relying on them.
+Use subagents proactively whenever work splits into independent parts (parallel
+exploration, research, review, or isolated implementation tasks) to speed things up.
+Keep tightly coupled, sequential work in one agent. Subagents editing in parallel must
+work on separate files or in separate worktrees. The primary agent verifies subagent
+findings and diffs before relying on them.
 
 ### Plans and audits
 
