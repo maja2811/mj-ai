@@ -26,7 +26,7 @@ skills, loaded on demand.
   any Databricks command. Never auto-select a `*-prd` profile.
 - **pytest scope** — never run the full suite unassisted. List the available test
   files/directories and let the user choose.
-- **`review-pr`** — never start a review implicitly.
+- **Reviews** — never start `review-pr` or `review-local` implicitly.
 - **Jira and Confluence writes** — draft comments, updates, transitions, and new issues
   for my review. Post only after approval or when I asked for that exact change.
 - **Commits and pushes** — ask before `git commit` or `git push`, every time. A rule
@@ -65,10 +65,10 @@ parallel work or when asked, and say so first.
 5. **Review and iterate** — inspect the diff and validation results against the
    acceptance criteria, correct what you find, and re-run the relevant checks after each
    fix. If implementation or review exposes a flaw in the plan, stop and revise the plan
-   with me instead of patching around it. Once the branch is pushed, `review-pr` can
-   review its branch URL or PR against the latest checklist as an optional final step,
-   never a replacement for the loop. A person reviews every PR. Never merge to `main`
-   yourself.
+   with me instead of patching around it. For an optional final AI review, ask whether
+   to open a draft PR and run `review-pr` on it (latest checklist), or run
+   `review-local` on the unpushed branch. Neither replaces the loop. A person reviews
+   every PR. Never merge to `main` yourself.
 
 Subagents only for independent work (parallel exploration, research, independent review);
 sequential work stays with one agent. The primary agent makes all edits and verifies
