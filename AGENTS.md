@@ -16,8 +16,8 @@ skills, loaded on demand.
 - No hardcoded secrets or credentials. Use Key Vault and environment variables.
 - Use `dlh-dmt-helper` whenever it covers the task, and stay compatible with the
   project's pin. Version and feed rules live in `dlh-dev-conventions`.
-- Load the relevant `dlh-*` skill before relying on generic knowledge. If it is missing,
-  follow Skill discovery and sync below.
+- Load the relevant `dlh-*` skill before relying on generic knowledge. If it is missing
+  or unreadable, follow Skill discovery and sync below.
 
 ### Always ask first
 
@@ -34,12 +34,14 @@ skills, loaded on demand.
   Run git through the shell `workdir` parameter, never `git -C`, so permission
   patterns match.
 - **Edits to this file** — never update `AGENTS.md` without explicit approval.
-- **VS Code CLI** — never run `code` or `code.cmd`; they open windows on this workstation.
+- **VS Code CLI** — never run `code` or `code.cmd` unless I ask; they open windows on this
+  workstation.
 
 ### Windows reserved filenames
 
 Never create files named `CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`, `LPT0`–`LPT9` (any
-case, any extension); they leave undeletable ghost files. Discard output in code instead.
+case, any extension); they leave undeletable ghost files. To discard output, use
+`$null` / `Out-Null` or redirect in code, never a `nul` file.
 
 ## Default Development Workflow
 
@@ -58,7 +60,8 @@ asked. If it is unclear which checkout or worktree to use, ask.
    it. For non-trivial work, write the plan with `improve plan <description>`, include a
    rough effort estimate, and wait for my approval before implementing.
 3. **Implement** — smallest correct diff on the current branch, reusing existing helpers
-   and patterns.
+   and patterns. No speculative layers or abstractions; keep validation, security, error
+   handling, and required tests.
 4. **Test** — smallest relevant validation first, broader checks when justified: unit and
    integration tests, then a DEV Databricks run with DQ checks where the change affects
    data. Report which checks ran with their results, and which could not run and why.
@@ -130,9 +133,9 @@ Also under `github.com/DanskeStatsbaner/`: `bi-dlh-helper` (helper API and examp
 `bi-dlh-dmt-ci-cd` (CI/CD pipelines), `bi-dlh-project-template` (project scaffold),
 `bi-dlh-src-commercial-spassenger` (reference implementation).
 
-A repo-local `checklist.md` may be stale where it conflicts with the documentation repo
-or current helper guidance. With `gh api`, request decoded file content, not raw
-`contents` JSON unless you need metadata.
+Read a repo-local `checklist.md` when present, but it may be stale where it conflicts with
+the documentation repo or current helper guidance. With `gh api`, request decoded file
+content, not raw `contents` JSON unless you need metadata.
 
 ## Local Access
 
