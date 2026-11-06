@@ -44,9 +44,9 @@ case, any extension); they leave undeletable ghost files. Discard output in code
 ## Default Development Workflow
 
 Use this loop for coding, debugging, refactoring, and review. Skip a separate plan for
-trivial changes. Work in the checkout open in VS Code (normally the session's working
-directory) so diffs stay visible there; use a separate worktree only for genuinely
-parallel work or when asked, and say so first.
+trivial changes. Work in the session's working directory, which is the checkout I have
+open, in VS Code or not. Use a separate worktree for genuinely parallel work or when
+asked. If it is unclear which checkout or worktree to use, ask.
 
 1. **Explore** — understand before acting: repo, docs, dependencies, external systems,
    and existing behaviour. If the task has a Jira ticket, read it via the `jira` agent;
