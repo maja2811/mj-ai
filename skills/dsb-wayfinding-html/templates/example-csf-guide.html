@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSF booking data: guide to the cleansed layer</title>
+<style>
+:root{
+  --paper:#f4f1ea; --paper-2:#ebe5d8; --card:#fffdf9; --ink:#14202e; --ink-2:#3d4856;
+  --red:#e2001a; --red-text:#b60017; --red-tint:#fbe4e6; --rule:#d6cdbb; --panel:#1a2635;
+  --f-body:"Segoe UI Variable Text","Segoe UI Variable","Segoe UI",system-ui,Arial,sans-serif;
+  --f-sign:Bahnschrift,"Bahnschrift SemiBold","Arial Narrow","Segoe UI",Arial,sans-serif;
+  --f-mono:"Cascadia Code","Cascadia Mono",Consolas,"Courier New",monospace;
+  --ind:44px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:96px}
+@media (prefers-reduced-motion: no-preference){html{scroll-behavior:smooth}}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 17px/1.6 var(--f-body);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:0 64px}
+img{display:block}
+a{color:var(--red-text);text-decoration-thickness:2px;text-underline-offset:3px}
+a:focus-visible,button:focus-visible,pre:focus-visible{outline:3px solid var(--red);outline-offset:3px}
+h1,h2,h3{font-family:var(--f-sign);font-weight:600;line-height:1.1;margin:0;letter-spacing:-.005em}
+p{margin:0 0 1em}
+p:last-child{margin-bottom:0}
+code{font-family:var(--f-mono);font-size:.88em;background:rgba(20,32,46,.07);padding:.08em .3em;border-radius:3px;overflow-wrap:anywhere}
+pre{margin:0;padding:20px 22px;overflow-x:auto;color:var(--paper);font:400 15px/1.6 var(--f-mono);white-space:pre}
+pre code{font:inherit;background:none;padding:0;color:inherit}
+
+/* masthead */
+.masthead{padding:40px 0 64px}
+.mast-grid{display:grid;grid-template-columns:1.35fr .85fr;gap:64px;align-items:end}
+.mast-brand{display:flex;align-items:center;gap:16px;margin-bottom:44px;font:600 14px/1.2 var(--f-sign);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+.mast-brand img{width:56px;height:56px}
+.masthead h1{font-size:64px;line-height:1.02;letter-spacing:-.02em;margin-bottom:28px}
+.masthead h1 span{display:block;color:var(--red-text)}
+.lead{font-size:20px;line-height:1.55;color:var(--ink-2);max-width:36em}
+.warning{background:var(--red);color:#fff;padding:36px 40px;outline:3px solid #fff;outline-offset:-14px}
+.warning .sign-tag{font:600 15px/1.2 var(--f-sign);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.warning p:last-child{font-size:19px;line-height:1.5}
+.warning a{color:#fff}
+
+/* station line navigation */
+.line{position:sticky;top:0;z-index:20;background:var(--ink);color:var(--paper)}
+.line ol{list-style:none;margin:0 auto;padding:12px 64px 10px;max-width:1240px;display:flex;justify-content:space-between;position:relative}
+.line ol::before{content:"";position:absolute;left:64px;right:64px;top:23px;height:2px;background:#3b4b5f}
+.line li{position:relative;flex:1 1 0;text-align:center}
+.line a{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--paper);text-decoration:none;font-size:13px;line-height:1.2}
+.line .dot{width:24px;height:24px;border-radius:50%;background:var(--ink);border:2px solid var(--paper);display:grid;place-items:center;font:600 12px/1 var(--f-sign)}
+.line a:hover .dot{background:var(--paper);color:var(--ink)}
+.line a[aria-current]{font-weight:600}
+.line a[aria-current] .dot{background:var(--red);border-color:var(--red);color:#fff}
+.line a:focus-visible{outline-color:var(--paper)}
+
+/* sections */
+main section{padding:96px 0}
+.band.paper{background:var(--paper)}
+.band.card{background:var(--card)}
+.band.deep{background:var(--paper-2)}
+.band.ink{background:var(--ink);color:var(--paper)}
+.band.ink code{background:rgba(255,255,255,.1);color:var(--paper)}
+.band.ink :focus-visible{outline-color:var(--paper)}
+.plate{display:flex;align-items:center;gap:24px;margin-bottom:44px;padding-bottom:26px;border-bottom:2px solid currentColor}
+.plate .num{flex:none;width:72px;height:72px;background:var(--red);color:#fff;display:grid;place-items:center;font:600 40px/1 var(--f-sign)}
+.plate h2{font-size:46px}
+.intro{font-size:20px;line-height:1.55;max-width:46em;margin:0 0 44px;color:var(--ink-2)}
+.band.ink .intro{color:#c9d1db}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:56px}
+.two p{font-size:19px;line-height:1.6}
+.cols-2{display:grid;grid-template-columns:1.1fr 1fr;gap:48px}
+
+/* 1 what the data is: life cycle track and tiles */
+.track{list-style:none;margin:72px 0 64px;padding:0;display:grid;grid-template-columns:repeat(4,1fr);position:relative}
+.track::before{content:"";position:absolute;left:12px;top:10px;width:75%;height:4px;background:var(--red)}
+.track li{position:relative;padding-top:44px;font:600 22px/1.2 var(--f-sign)}
+.track li::before{content:"";position:absolute;top:0;left:0;width:24px;height:24px;border-radius:50%;background:var(--paper);border:5px solid var(--red)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+.tile{background:var(--ink);color:var(--paper);padding:28px 32px 32px;border-top:8px solid var(--red)}
+.tl{display:block;font:600 14px/1.2 var(--f-sign);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+.tile .tl{color:#f6c4ca}
+.tv{display:block;font:600 32px/1.15 var(--f-sign);margin:12px 0 10px}
+.tv.m{font:600 22px/1.35 var(--f-mono);overflow-wrap:anywhere}
+.ts{display:block;font-size:16px;line-height:1.5;color:#d6dde6}
+
+/* 2 finding your way: route of stations */
+.route{list-style:none;margin:0 0 64px;padding:0;display:grid;grid-template-columns:repeat(5,1fr);position:relative}
+.route::before{content:"";position:absolute;top:11px;left:12px;right:12px;height:4px;background:var(--ink)}
+.route li{position:relative;padding:48px 18px 0 0}
+.route li::before{content:"";position:absolute;top:0;left:0;width:24px;height:24px;border-radius:50%;background:var(--card);border:5px solid var(--ink)}
+.route li.start::before{background:var(--red);border-color:var(--red);box-shadow:0 0 0 4px var(--card),0 0 0 7px var(--red)}
+.route .rl{display:block;font:600 21px/1.2 var(--f-sign)}
+.route .rs{display:block;font-size:15px;line-height:1.45;color:var(--ink-2);margin-top:8px}
+.route li.start .rs{color:var(--red-text);font-weight:600}
+.flag{background:var(--red);color:#fff;padding:40px 44px}
+.flag h3{font-size:32px;margin-bottom:16px}
+.flag p{font-size:18px;line-height:1.6}
+.flag code{background:rgba(255,255,255,.2);color:#fff}
+.pick h3{font-size:30px;margin-bottom:12px}
+.pick dl{margin:0}
+.pick dt{font:600 19px/1.3 var(--f-sign);margin-top:20px;padding-top:14px;border-top:2px solid var(--ink)}
+.pick dd{margin:6px 0 0;color:var(--ink-2)}
+.signal{margin:56px 0 0;padding:28px 36px;border-left:8px solid var(--ink);background:var(--paper)}
+.signal p{margin:0;font-size:18px;line-height:1.6}
+.refs{margin-top:28px;font-size:16px;color:var(--ink-2)}
+
+/* 3 table map: a line diagram */
+.legend{display:flex;gap:36px;flex-wrap:wrap;margin:-20px 0 32px;font-size:15px;color:#d6dde6}
+.legend span{display:inline-flex;align-items:center;gap:12px}
+.map{background:var(--panel);padding:48px 56px 52px;overflow-x:auto}
+.tree{list-style:none;margin:0;padding:0;font:500 19px/1 var(--f-mono)}
+.tree ul{list-style:none;margin:0;padding:0 0 0 var(--ind)}
+.tree li{position:relative}
+.tree > li::before,.tree > li::after{display:none}
+.tree li::before{content:"";position:absolute;left:calc(8px - var(--ind));top:22px;width:var(--ind);height:3px;margin-top:-1.5px;background:var(--red)}
+.tree li::after{content:"";position:absolute;left:calc(6.5px - var(--ind));top:0;bottom:0;width:3px;background:var(--red)}
+.tree li:first-child::after{top:-22px}
+.tree li:last-child::after{bottom:auto;height:22px}
+.tree li:only-child::after{top:-22px;height:44px}
+.row{display:flex;align-items:center;height:44px;color:var(--paper);white-space:nowrap}
+.row::before{content:none}
+.st{position:relative;z-index:1;flex:none;width:16px;height:16px;margin-right:14px;border-radius:50%;background:var(--paper);border:4px solid var(--red);box-sizing:border-box}
+.st.ix{width:24px;height:24px;margin:0 10px 0 -4px;border:6px solid var(--red);background:var(--panel);box-shadow:inset 0 0 0 3px var(--paper)}
+.tree > li > .row > .st{width:30px;height:30px;margin:0 7px 0 -7px;border-width:6px}
+.tree > li > .row > .name{font-size:26px;font-weight:700}
+.legend .st{margin:0}
+.legend .st.ix{margin:0}
+
+/* 4 history */
+.defgrid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.defcard{background:var(--card);padding:30px 34px;border-top:6px solid var(--ink)}
+.defcard h3{font-size:24px;margin-bottom:12px}
+.defcard p{font-size:18px}
+.versions{margin:64px 0 56px}
+.vtrack{display:flex;position:relative;height:124px;margin-top:40px}
+.v{display:flex;align-items:flex-end;padding:16px 18px;font:600 17px/1.2 var(--f-sign);border:3px solid var(--ink);background:var(--card);margin-right:-3px}
+.v1{flex:1.2}
+.v2{flex:1.5}
+.v3{flex:1.1;background:var(--red);border-color:var(--red);color:#fff}
+.tmark{position:absolute;top:-40px;bottom:-14px;left:51%;width:3px;background:var(--ink)}
+.tmark span{position:absolute;top:-6px;left:-14px;width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--paper);font:600 16px/30px var(--f-mono);text-align:center}
+.versions figcaption{font-size:16px;color:var(--ink-2);margin-top:28px;max-width:60em}
+.note{font-size:18px;color:var(--ink-2)}
+
+/* 5 joining: three rules */
+.rules{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-bottom:24px}
+.rule{padding:34px 34px 36px;display:flex;flex-direction:column;min-height:300px}
+.rule .rn{font:600 15px/1 var(--f-sign);letter-spacing:.14em;text-transform:uppercase;margin-bottom:20px}
+.rule h3{font-size:32px;margin-bottom:14px}
+.rule p{font-size:17px}
+.rule code{font-size:inherit;padding:0 .3em;background:rgba(255,255,255,.16);color:inherit}
+.rule > code{display:block;margin-top:auto;padding:14px 16px;font-size:16px;line-height:1.5}
+.r1{background:var(--red);color:#fff}
+.r2{background:var(--ink);color:var(--paper)}
+.r3{background:var(--card);border-top:8px solid var(--red)}
+.r3 code{background:rgba(20,32,46,.07);color:var(--ink)}
+.hist{background:var(--card);padding:30px 36px;border-left:8px solid var(--red)}
+.hist h3{font-size:26px;margin-bottom:12px}
+.hist p{font-size:18px}
+.hist code{display:block;margin:14px 0 16px;padding:14px 16px;font-size:16px;background:var(--paper)}
+.note-plain{margin:44px 0 0;font-size:18px;color:var(--ink-2);max-width:48em}
+.sub{font-size:34px;margin:72px 0 14px}
+.tablewrap{overflow-x:auto;margin-top:28px;background:var(--card)}
+table.links{width:100%;border-collapse:collapse;font-size:16px}
+th{font:600 14px/1.2 var(--f-sign);letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:16px 20px;background:var(--ink);color:var(--paper)}
+td{padding:16px 20px;border-top:1px solid var(--rule);vertical-align:top;line-height:1.55}
+td code{font-size:14px;overflow-wrap:normal;word-break:normal}
+table.links th:nth-child(1),table.links td:nth-child(1){width:36%}
+table.links th:nth-child(2),table.links td:nth-child(2){width:24%}
+
+/* 6 amounts */
+.equation{display:flex;flex-wrap:wrap;align-items:center;gap:14px 18px;padding:40px 44px;background:var(--card);border-top:8px solid var(--ink)}
+.equation code{font-size:20px;padding:14px 18px;background:var(--paper);box-shadow:inset 0 0 0 2px var(--ink)}
+.equation .op{font:600 34px/1 var(--f-sign);color:var(--red-text)}
+.equation .w{font:600 16px/1 var(--f-sign);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+
+/* 7 quality */
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.check{background:var(--card);padding:34px 36px;border-left:8px solid var(--red)}
+.check h3{font-size:30px;margin:12px 0 12px}
+.check p{font-size:18px}
+.report{margin-top:36px;font-size:19px;font-weight:600}
+
+/* 8 limitations */
+.alerts{list-style:none;margin:0;padding:0;counter-reset:a;max-width:58em}
+.alerts li{position:relative;padding:24px 0 24px 72px;border-top:2px solid var(--ink);font-size:18px;line-height:1.6}
+.alerts li:last-child{border-bottom:2px solid var(--ink)}
+.alerts li::before{counter-increment:a;content:counter(a,decimal-leading-zero);position:absolute;left:0;top:24px;font:600 24px/1.2 var(--f-sign);color:var(--red-text)}
+
+/* 9 more information */
+.links2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.linkcard{display:block;background:var(--card);padding:34px 38px;border-top:8px solid var(--ink);color:var(--ink);text-decoration:none}
+.linkcard .big{display:block;font:600 27px/1.2 var(--f-sign);margin:10px 0 14px;color:var(--ink)}
+.linkcard a.big{text-decoration-thickness:2px}
+a.linkcard:hover .big{color:var(--red-text)}
+.linkcard p{font-size:17px;color:var(--ink-2)}
+
+/* 10 queries */
+.speed{background:var(--ink);color:var(--paper);padding:34px 42px;border-left:12px solid var(--red);margin:0 0 28px}
+.speed h3{font-size:28px;margin-bottom:14px}
+.speed p{font-size:18px;line-height:1.6}
+.speed code{background:rgba(255,255,255,.12);color:var(--paper)}
+.speed-foot{font-size:17px;color:var(--ink-2);margin:0 0 56px}
+.q{display:grid;grid-template-columns:minmax(260px,.8fr) 1.6fr;gap:44px;padding:48px 0;border-top:2px solid var(--ink)}
+.q:last-child{border-bottom:2px solid var(--ink)}
+.q .qn{display:inline-block;font:600 16px/1 var(--f-sign);color:#fff;background:var(--red);padding:6px 10px;margin-bottom:16px;letter-spacing:.08em}
+.q h3{font-size:27px;margin-bottom:14px}
+.q p{font-size:17px;color:var(--ink-2)}
+.codebox{min-width:0;background:var(--ink)}
+.codebar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 8px 8px 20px;border-bottom:1px solid #2c3b4f;color:#c9d1db;font:600 13px/1.2 var(--f-sign);letter-spacing:.12em;text-transform:uppercase}
+.copy{font:600 15px/1 var(--f-body);background:var(--paper);color:var(--ink);border:0;padding:9px 16px;cursor:pointer}
+.copy:hover{background:#fff}
+
+.foot{background:var(--ink);color:#c9d1db;padding:34px 0;font-size:16px}
+.foot p{margin:0}
+
+@media (max-width:1100px){
+  .wrap{padding:0 40px}
+  .line ol{padding-left:40px;padding-right:40px}
+  .line ol::before{left:40px;right:40px}
+  .masthead h1{font-size:54px}
+  .mast-grid{grid-template-columns:1fr;gap:40px}
+  .q{grid-template-columns:1fr;gap:24px}
+  .rules{grid-template-columns:1fr}
+  .rule{min-height:0}
+}
+@media (max-width:900px){
+  .two,.cols-2,.checks,.links2,.defgrid{grid-template-columns:1fr}
+  .tiles{grid-template-columns:1fr}
+  .plate h2{font-size:36px}
+  .route{grid-template-columns:1fr;margin-bottom:48px}
+  .route::before{left:11px;right:auto;top:12px;bottom:12px;width:4px;height:auto}
+  .route li{padding:0 0 30px 52px}
+  .route li:last-child{padding-bottom:0}
+  .route li::before{top:0}
+  .track{grid-template-columns:1fr;gap:30px;margin:48px 0 40px;padding-left:0}
+  .track::before{left:11px;top:12px;bottom:12px;width:4px;height:auto}
+  .track li{padding:0 0 0 52px;min-height:24px}
+  .track li::before{top:0}
+  .track li{padding-top:0}
+}
+@media (max-width:700px){
+  :root{--ind:28px}
+  body{font-size:16px}
+  .wrap{padding:0 20px}
+  main section{padding:64px 0}
+  .masthead{padding:28px 0 44px}
+  .masthead h1{font-size:40px}
+  .lead{font-size:18px}
+  .warning{padding:28px 28px;outline-offset:-10px}
+  .line ol{padding:12px 20px 10px}
+  .line ol::before{left:20px;right:20px}
+  .line a{font-size:0}
+  .plate{gap:16px;flex-wrap:wrap}
+  .plate .num{width:56px;height:56px;font-size:30px}
+  .plate h2{font-size:30px}
+  .intro{font-size:18px}
+  .map{padding:32px 24px}
+  .tree{font-size:15px}
+  .tree > li > .row > .name{font-size:20px}
+  .tree li::before,.tree li::after{left:calc(8px - var(--ind))}
+  .flag,.hist,.signal,.speed,.check,.rule,.defcard,.linkcard,.equation,.tile{padding-left:24px;padding-right:24px}
+  .tile{padding-top:24px;padding-bottom:26px}
+  .tv{font-size:26px}
+  .tv.m{font-size:17px}
+  .alerts li{padding-left:56px}
+  .q{padding:36px 0}
+  .q h3{font-size:23px}
+  table.links{font-size:15px}
+  td,th{padding:12px 14px}
+  .copy{padding:8px 12px}
+}
+@media print{
+  @page{size:A4;margin:14mm}
+  .line,.copy{display:none!important}
+  body{background:#fff;color:#000;font-size:11pt}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  main section,.foot,.band.ink,.band.deep,.band.card,.band.paper{background:#fff!important;color:#000!important;padding:24px 0}
+  .band.ink code,.band.paper code{color:#000}
+  .map{background:#fff!important;border:1px solid #999}
+  .tree .row,.root .name,.name{color:#000!important}
+  .tile,.speed,.flag,.rule,.warning{border:1px solid #000}
+  .tile,.speed,.flag,.rule,.warning,.defcard,.check,.hist,.signal,.linkcard,.equation,.codebox{background:#fff!important;color:#000!important}
+  .tile *,.speed *,.flag *,.rule *,.warning *,.linkcard *{color:#000!important}
+  .codebox{border:1px solid #999}
+  .codebar{color:#000;border-bottom:1px solid #999}
+  pre{color:#000;white-space:pre-wrap;word-break:break-word}
+  .plate .num,.qn{background:#000!important;color:#fff!important}
+  .q,pre,.codebox,.rules,.equation,table,.track,.route,.alerts li,.rule,.check,.defcard{break-inside:avoid;page-break-inside:avoid}
+  .masthead{padding:0 0 16px}
+  .warning{outline:none}
+  a{color:#000}
+  a[href^="http"]::after{content:""}
+}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap mast-grid">
+    <div>
+      <div class="mast-brand">
+        <img src="data:image/png;base64,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" width="56" height="56" alt="DSB">
+        <span>Handover guide · BI Commercial</span>
+      </div>
+      <h1>CSF booking data: <span>guide to the cleansed layer</span></h1>
+      <p class="lead">This guide is for analysts and business users who query the CSF booking data. It explains what the data is, how to find your way in Unity Catalog, and how to join the tables correctly. Ready-made SQL is in the <a href="#s-queries">example queries</a>.</p>
+    </div>
+    <aside class="warning" aria-label="Warning">
+      <p class="sign-tag">Not all sales yet</p>
+      <p><strong>Sales are moving to this system gradually, so the data does not yet contain all of DSB's sales.</strong> Keep that in mind before using it for total sales figures.</p>
+    </aside>
+  </div>
+</header>
+
+<nav class="line" aria-label="Guide sections">
+  <ol>
+    <li><a href="#s-what"><span class="dot">1</span><span>What the data is</span></a></li>
+    <li><a href="#s-find"><span class="dot">2</span><span>Finding your way</span></a></li>
+    <li><a href="#s-map"><span class="dot">3</span><span>Table map</span></a></li>
+    <li><a href="#s-history"><span class="dot">4</span><span>Current data and history</span></a></li>
+    <li><a href="#s-join"><span class="dot">5</span><span>Joining tables</span></a></li>
+    <li><a href="#s-amounts"><span class="dot">6</span><span>Reading amounts</span></a></li>
+    <li><a href="#s-quality"><span class="dot">7</span><span>Data quality</span></a></li>
+    <li><a href="#s-limits"><span class="dot">8</span><span>Known limitations</span></a></li>
+    <li><a href="#s-info"><span class="dot">9</span><span>More information</span></a></li>
+    <li><a href="#s-queries"><span class="dot">10</span><span>Example queries</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="s-what" class="band paper">
+  <div class="wrap">
+    <header class="plate"><span class="num">1</span><h2>What the data is</h2></header>
+    <div class="two">
+      <div>
+        <p>CSF (customer sales flow) holds the bookings made through DSB's new sales system (Sales Component, S3/Sqills), for example in the app, on the web, at ticket machines and at manned sales points.</p>
+      </div>
+      <div>
+        <p>A booking changes over time: it is created, confirmed, changed or refunded. The tables keep <strong>every version</strong> of every booking, split into passengers, offers and products, journeys, reservations and seats, admissions, refunds, documents and fulfillment.</p>
+      </div>
+    </div>
+    <ol class="track" aria-label="Life of a booking">
+      <li>Created</li>
+      <li>Confirmed</li>
+      <li>Changed</li>
+      <li>Refunded</li>
+    </ol>
+    <div class="tiles">
+      <div class="tile"><span class="tl">Where</span><span class="tv m">commercial_prd.csf_cleansed</span><span class="ts">Unity Catalog schema, 16 tables</span></div>
+      <div class="tile"><span class="tl">Updated</span><span class="tv">Every night</span></div>
+      <div class="tile"><span class="tl">Personal data</span><span class="tv">None</span><span class="ts">Names, contact details and document content are not in these tables.</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="s-find" class="band card">
+  <div class="wrap">
+    <header class="plate"><span class="num">2</span><h2>Finding your way in Unity Catalog</h2></header>
+    <p class="intro">Everything about the tables and columns is described in Unity Catalog. Open Catalog Explorer and go to <code>commercial_prd</code> → <code>csf_cleansed</code>.</p>
+    <ol class="route">
+      <li><span class="rl">Catalog Explorer</span><span class="rs">Open it.</span></li>
+      <li><span class="rl"><code>commercial_prd</code></span><span class="rs">The catalog.</span></li>
+      <li class="start"><span class="rl"><code>csf_cleansed</code></span><span class="rs">The schema. Start here, before picking a table.</span></li>
+      <li><span class="rl">A table</span><span class="rs">Overview tab or Columns tab.</span></li>
+      <li><span class="rl">View relationships</span><span class="rs">Overview tab, above the description.</span></li>
+    </ol>
+    <div class="cols-2">
+      <article class="flag">
+        <h3>Start with the schema description</h3>
+        <p>Click the schema <code>csf_cleansed</code> itself, before picking a table. Its Overview tab gives a short introduction: what the data is, how the history works, how to join the tables, and a diagram of all tables. To see the diagram in full size, right-click it, choose "Save image as" and open the saved file.</p>
+      </article>
+      <div class="pick">
+        <h3>Then pick a table</h3>
+        <dl>
+          <dt>Overview tab</dt>
+          <dd>The table description says what one row is.</dd>
+          <dt>Columns tab</dt>
+          <dd>Every column has a description, including how to join it. A key icon marks the columns that identify a row and the columns that link to another table.</dd>
+          <dt>View relationships</dt>
+          <dd>Overview tab, above the description: a diagram of the table and the tables it links to, with the exact columns to join on.</dd>
+        </dl>
+      </div>
+    </div>
+    <aside class="signal">
+      <p><strong>How "View relationships" works in Databricks:</strong> the button only appears on a table that links <em>up</em> to a parent table. Every CSF table does, except <code>book</code>. <code>book</code> is the top of the tree, so it has no button. To see <code>book</code> in a diagram, open one of the tables below it, such as <code>book_offer</code> or <code>book_passenger</code>.</p>
+    </aside>
+    <p class="refs">Databricks guides: <a href="https://learn.microsoft.com/en-us/azure/databricks/catalog-explorer/">Catalog Explorer</a> and <a href="https://learn.microsoft.com/en-us/azure/databricks/catalog-explorer/entity-relationship-diagram">View relationships</a>.</p>
+  </div>
+</section>
+
+<section id="s-map" class="band ink">
+  <div class="wrap">
+    <header class="plate"><span class="num">3</span><h2>Table map</h2></header>
+    <p class="intro">Use this to know which table to open. Each table links to the one above it.</p>
+    <div class="legend" aria-hidden="true">
+      <span><span class="st"></span>A table</span>
+      <span><span class="st ix"></span>A table with tables below it</span>
+    </div>
+    <div class="map">
+      <ul class="tree">
+        <li class="root"><div class="row"><span class="st"></span><span class="name">book</span></div>
+          <ul>
+            <li><div class="row"><span class="st"></span><span class="name">book_passenger</span></div></li>
+            <li><div class="row"><span class="st"></span><span class="name">book_anonymous_passenger</span></div></li>
+            <li><div class="row"><span class="st"></span><span class="name">book_document</span></div></li>
+            <li><div class="row"><span class="st"></span><span class="name">book_fulfillment</span></div></li>
+            <li><div class="row"><span class="st"></span><span class="name">book_refund_offer</span></div></li>
+            <li><div class="row"><span class="st ix"></span><span class="name">book_trip_leg</span></div>
+              <ul>
+                <li><div class="row"><span class="st"></span><span class="name">book_trip_leg_stop</span></div></li>
+              </ul>
+            </li>
+            <li><div class="row"><span class="st ix"></span><span class="name">book_offer</span></div>
+              <ul>
+                <li><div class="row"><span class="st"></span><span class="name">book_offer_product</span></div></li>
+                <li><div class="row"><span class="st"></span><span class="name">book_offer_trip_leg_product_association</span></div></li>
+                <li><div class="row"><span class="st"></span><span class="name">book_ancillary</span></div></li>
+                <li><div class="row"><span class="st ix"></span><span class="name">book_reservation</span></div>
+                  <ul>
+                    <li><div class="row"><span class="st"></span><span class="name">book_reserved_place</span></div></li>
+                  </ul>
+                </li>
+                <li><div class="row"><span class="st ix"></span><span class="name">book_admission</span></div>
+                  <ul>
+                    <li><div class="row"><span class="st"></span><span class="name">book_admission_passenger_type</span></div></li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="s-history" class="band paper">
+  <div class="wrap">
+    <header class="plate"><span class="num">4</span><h2>Current data and history</h2></header>
+    <p class="intro">Every table keeps all versions. Two columns tell you when a version was valid:</p>
+    <div class="defgrid">
+      <div class="defcard">
+        <h3><code>_app_valid_from</code> and <code>_app_valid_to</code></h3>
+        <p>The <strong>current version</strong> has <code>_app_valid_to = '9999-12-31'</code>.</p>
+      </div>
+      <div class="defcard">
+        <h3>As it was at a given time <code>t</code></h3>
+        <p><code>_app_valid_from &lt;= t AND t &lt; _app_valid_to</code></p>
+      </div>
+    </div>
+    <figure class="versions">
+      <div class="vtrack">
+        <div class="v v1">version 1</div>
+        <div class="v v2">version 2</div>
+        <div class="v v3">version 3, current</div>
+        <div class="tmark"><span>t</span></div>
+      </div>
+      <figcaption>Illustration: one row with three versions. Each block is one version, from <code>_app_valid_from</code> to <code>_app_valid_to</code>. The version that contains <code>t</code> is the one to take.</figcaption>
+    </figure>
+    <p class="note">Columns such as <code>created_on</code>, <code>valid_from</code> and <code>valid_until</code> are business dates from the sales system. They do not control the history.</p>
+  </div>
+</section>
+
+<section id="s-join" class="band deep">
+  <div class="wrap">
+    <header class="plate"><span class="num">5</span><h2>Joining tables</h2></header>
+    <p class="intro">Pick the moment you want, take the version of each table that was valid at that moment, and join on the ID columns shown under "View relationships", for example <code>booking_id</code>, or <code>booking_id</code> and <code>offer_id</code>. This one rule works for every table:</p>
+    <div class="rules">
+      <article class="rule r1">
+        <span class="rn">Rule 1</span>
+        <h3>Current data</h3>
+        <p>Filter every table on</p>
+        <code>_app_valid_to = '9999-12-31'</code>
+      </article>
+      <article class="rule r2">
+        <span class="rn">Rule 2</span>
+        <h3>At a given time <code>t</code></h3>
+        <p>Time travel: filter every table on</p>
+        <code>_app_valid_from &lt;= t AND t &lt; _app_valid_to</code>
+      </article>
+      <article class="rule r3">
+        <span class="rn">Rule 3</span>
+        <h3>Join on IDs</h3>
+        <p>Join on the ID columns shown under "View relationships", for example <code>booking_id</code>, or <code>booking_id</code> and <code>offer_id</code>.</p>
+      </article>
+    </div>
+    <aside class="hist">
+      <h3>The history of a booking with its details</h3>
+      <p>For each booking version, take the detail version that was valid at that booking version's time:</p>
+      <code>d._app_valid_from &lt;= b._app_valid_from AND b._app_valid_from &lt; d._app_valid_to</code>
+      <p>See the last query in the <a href="#q11">example queries</a>.</p>
+    </aside>
+    <p class="note-plain">"View relationships" also shows <code>_app_valid_from</code> on each link. You do not need to join on it: the time rule above already picks the right version. Joining on an exact <code>_app_valid_from</code> misses rows in <code>book_offer_trip_leg_product_association</code>, which only gets a new version when the association itself changes.</p>
+
+    <h3 class="sub">Links the diagram does not show</h3>
+    <p class="intro" style="margin-bottom:0">Some links sit inside lists or codes, so "View relationships" cannot show them. The column descriptions in Unity Catalog describe the same joins.</p>
+    <div class="tablewrap">
+      <table class="links">
+        <thead>
+          <tr><th scope="col">From</th><th scope="col">Column</th><th scope="col">Join to</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>book_reservation</code>, <code>book_reserved_place</code>, <code>book_admission</code>, <code>book_ancillary</code></td><td><code>passenger_ids</code> (a list, see the <a href="#q7">seats query</a>)</td><td><code>book_passenger</code> on <code>booking_id</code> and <code>external_ref</code></td></tr>
+          <tr><td><code>book_admission_passenger_type</code></td><td><code>passenger_ref</code></td><td><code>book_passenger</code> on <code>booking_id</code> and <code>external_ref</code></td></tr>
+          <tr><td><code>book_admission</code></td><td><code>passenger_ids</code></td><td>can also point to <code>book_anonymous_passenger</code> on <code>booking_id</code> and <code>external_ref</code></td></tr>
+          <tr><td><code>book_offer_trip_leg_product_association</code></td><td><code>product_code</code></td><td><code>book_offer_product</code> on <code>booking_id</code>, <code>offer_id</code> and <code>code</code>. Only booked products match: the table also lists products that were considered but not needed (<code>status_code = 'NO_NEED'</code>).</td></tr>
+          <tr><td><code>book_offer_trip_leg_product_association</code></td><td><code>trip_leg_index</code></td><td><code>book_trip_leg</code> on <code>booking_id</code>, <code>trip_leg_index</code> and <code>trip_id</code> = <code>book_offer.trip_coverage_covered_trip_id</code></td></tr>
+          <tr><td><code>book_reserved_place</code></td><td><code>trip_leg_coverage_trip_id</code>, <code>trip_leg_coverage_leg_id</code></td><td><code>book_trip_leg</code> on <code>booking_id</code>, <code>trip_id</code>, and <code>trip_leg_index</code> = the leg ID as a number</td></tr>
+          <tr><td><code>book_reservation</code>, <code>book_admission</code>, <code>book_ancillary</code></td><td><code>products[].product_id</code></td><td><code>book_offer_product</code> on <code>booking_id</code>, <code>offer_id</code> and <code>code</code> (not <code>product_id</code>)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="s-amounts" class="band paper">
+  <div class="wrap">
+    <header class="plate"><span class="num">6</span><h2>Reading amounts</h2></header>
+    <p class="intro">Amounts are stored as whole numbers with a scale and a currency, for example <code>price_amount</code>, <code>price_scale</code> and <code>price_currency</code>. The real amount is:</p>
+    <div class="equation">
+      <code>price_amount</code>
+      <span class="op">/</span>
+      <code>power(10, price_scale)</code>
+      <span class="w">in</span>
+      <code>price_currency</code>
+    </div>
+  </div>
+</section>
+
+<section id="s-quality" class="band card">
+  <div class="wrap">
+    <header class="plate"><span class="num">7</span><h2>Data quality</h2></header>
+    <p class="intro">Every night's update runs two checks.</p>
+    <div class="checks">
+      <article class="check">
+        <span class="tl">Check 1</span>
+        <h3>Belongs to a booking</h3>
+        <p>Each row belongs to a booking, for example every passenger has a booking.</p>
+      </article>
+      <article class="check">
+        <span class="tl">Check 2</span>
+        <h3>No duplicates</h3>
+        <p>No row appears twice.</p>
+      </article>
+    </div>
+    <p class="report">Problems are reported to the BI Commercial team.</p>
+  </div>
+</section>
+
+<section id="s-limits" class="band paper">
+  <div class="wrap">
+    <header class="plate"><span class="num">8</span><h2>Known limitations</h2></header>
+    <ul class="alerts">
+      <li>The data starts in March 2026. How long it is kept (6 years) is still an open question with the source team.</li>
+      <li>The actual arrival and departure times on stops are only filled when the sales app sends them.</li>
+      <li>Not every reserved seat links to a trip leg. Use a LEFT JOIN, as in the <a href="#q7">seats query</a>.</li>
+      <li>If something is removed from a booking later, for example a passenger, it can still show as current. This has not happened in the data so far.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="s-info" class="band card">
+  <div class="wrap">
+    <header class="plate"><span class="num">9</span><h2>More information</h2></header>
+    <div class="links2">
+      <a class="linkcard" href="https://confluence.dsb.dk/pages/viewpage.action?pageId=210410057&amp;spaceKey=SCBA&amp;title=Book-External-Domain-Book">
+        <span class="tl">What each field means in the sales system</span>
+        <span class="big">Book External Domain (Confluence)</span>
+        <p>The field definitions in the sales system.</p>
+      </a>
+      <div class="linkcard">
+        <span class="tl">Questions</span>
+        <span class="big">The BI Commercial team</span>
+        <p><a href="mailto:dl-BIcommercialt@dsb.dk">dl-BIcommercialt@dsb.dk</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="s-queries" class="band paper">
+  <div class="wrap">
+    <header class="plate"><span class="num">10</span><h2>CSF booking data: example queries</h2></header>
+    <p class="intro">Ready-made SQL for <code>commercial_prd.csf_cleansed</code>. Each query was tested against the production data on 2026-11-09. Read the guide above first for the rules on current data, history and joins.</p>
+    <aside class="speed">
+      <h3>Keep queries fast</h3>
+      <p>Filter every table on current data or a point in time, and limit each query to one booking or a period, as the queries below do. The summary queries take bookings created in October 2026 (the monthly overview: August to October), filtered on <code>b.created_on</code>. Change the dates to the period you need. A query without such a limit reads every booking, and a detail query returns millions of rows.</p>
+    </aside>
+    <p class="speed-foot">All queries return current data (<code>_app_valid_to = '9999-12-31'</code>) unless they say otherwise.</p>
+
+    <article class="q" id="q1">
+      <div>
+        <span class="qn">01</span>
+        <h3>Bookings per month and sales channel</h3>
+        <p>The data does not yet contain all of DSB's sales (see the guide above), so these are totals for the new sales system only.</p>
+      </div>
+      <div class="codebox">
+        <div class="codebar"><span>SQL</span><button type="button" class="copy" data-copy="sql1">Copy</button></div>
+        <pre tabindex="0"><code id="sql1">SELECT date_trunc('month', created_on) AS month,
+       sales_channel,
+       count(*) AS bookings,
+       sum(confirmed_price_amount / power(10, confirmed_price_scale)) AS confirmed_price
+FROM commercial_prd.csf_cleansed.book
+WHERE _app_valid_to = '9999-12-31'
+  AND created_on &gt;= '2026-08-01' AND created_on &lt; '2026-11-01'
+GROUP BY ALL
+ORDER BY month DESC, bookings DESC;</code></pre>
+      </div>
+    </article>
+
+    <article class="q" id="q2">
+      <div>
+        <span class="qn">02</span>
+        <h3>A booking as it looked at a given time</h3>
+        <p><code>booking_code</code> is the code the customer sees, so it is handy for looking a booking up. The source can reuse codes over time, so always join tables on <code>booking_id</code>.</p>
+      </div>
+      <div class="codebox">
+        <div class="codebar"><span>SQL</span><button type="button" class="copy" data-copy="sql2">Copy</button></div>
+        <pre tabindex="0"><code id="sql2">SELECT booking_id, booking_code, sales_channel, fulfillment_type,
+       confirmed_price_amount / power(10, confirmed_price_scale) AS confirmed_price
+FROM commercial_prd.csf_cleansed.book
+WHERE booking_code = 'ABC123'
+  AND _app_valid_from &lt;= TIMESTAMP '2026-10-01 12:00:00'
+  AND TIMESTAMP '2026-10-01 12:00:00' &lt; _app_valid_to;</code></pre>
+      </div>
+    </article>
+
+    <article class="q" id="q3">
+      <div>
+        <span class="qn">03</span>
+        <h3>All versions of one booking</h3>
+      </div>
+      <div class="codebox">
+        <div class="codebar"><span>SQL</span><button type="button" class="copy" data-copy="sql3">Copy</button></div>
+        <pre tabindex="0"><code id="sql3">SELECT _app_valid_from, _app_valid_to, fulfillment_type,
+       confirmed_price_amount / power(10, confirmed_price_scale) AS confirmed_price
+FROM commercial_prd.csf_cleansed.book
+WHERE booking_code = 'ABC123'
+ORDER BY _app_valid_from;</code></pre>
+      </div>
+    </article>
+
+    <article class="q" id="q4">
+      <div>
+        <span class="qn">04</span>
+        <h3>Passengers by passenger type</h3>
+      </div>
+      <div class="codebox">
+        <div class="codebar"><span>SQL</span><button type="button" class="copy" data-copy="sql4">Copy</button></div>
+        <pre tabindex="0"><code id="sql4">SELECT p.type AS passenger_type,
+       count(*) AS passengers,
+       count(DISTINCT p.booking_id) AS bookings
+FROM commercial_prd.csf_cleansed.book b
+JOIN commercial_prd.csf_cleansed.book_passenger p
+  ON p.booking_id = b.booking_id
+ AND p._app_valid_to = '9999-12-31'
+WHERE b._app_valid_to = '9999-12-31'
+  AND b.created_on &gt;= '2026-10-01' AND b.created_on &lt; '2026-11-01'
+GROUP BY ALL
+ORDER BY passengers DESC;</code></pre>
+      </div>
+    </article>
+
+    <article class="q" id="q5">
+      <div>
+        <span class="qn">05</span>
+        <h3>Offers and their products</h3>
+      </div>
+      <div class="codebox">
+        <div class="codebar"><span>SQL</span><button type="button" class="copy" data-copy="sql5">Copy</button></div>
+        <pre tabindex="0"><code id="sql5">SELECT o.offer_type,
+       pr.code AS product_code,
+       pr.travel_class,
+       count(*) AS products
+FROM commercial_prd.csf_cleansed.book b
+JOIN commercial_prd.csf_cleansed.book_offer o
+  ON o.booking_id = b.booking_id
+ AND o._app_valid_to = '9999-12-31'
+JOIN commercial_prd.csf_cleansed.book_offer_product pr
+  ON pr.booking_id = o.booking_id
+ AND pr.offer_id = o.offer_id
+ AND pr._app_valid_to = '9999-12-31'
+WHERE b._app_valid_to = '9999-12-31'
+  AND b.created_on &gt;= '2026-10-01' AND b.created_on &lt; '2026-11-01'
+GROUP BY ALL
+ORDER BY products DESC;</code></pre>
+      </div>
+    </article>
+
+    <article class="q" id="q6">
+      <div>
+        <span class="qn">06</span>
+        <h3>The journey of a booking: trip legs and stops</h3>
+      </div>
+      <div class="codebox">
+        <div class="codebar"><span>SQL</span><button type="button" class="copy" data-copy="sql6">Copy</button></div>
+        <pre tabindex="0"><code id="sql6">SELECT l.trip_id, l.trip_leg_index, s.trip_stop_index, s.location_name,
+       s.planned_departure_time, s.planned_arrival_time
+FROM commercial_prd.csf_cleansed.book_trip_leg l
+JOIN commercial_prd.csf_cleansed.book_trip_leg_stop s
+  ON s.booking_id = l.booking_id
+ AND s.trip_id = l.trip_id
+ AND s.trip_leg_index = l.trip_leg_index
+ AND s._app_valid_to = '9999-12-31'
+WHERE l._app_valid_to = '9999-12-31'
+  AND l.booking_id = '&lt;booking_id&gt;'
+ORDER BY l.trip_id, l.trip_leg_index, s.trip_stop_index;</code></pre>
+      </div>
+    </article>
+
+    <article class="q" id="q7">
+      <div>
+        <span class="qn">07</span>
+        <h3>Reserved seats with the passenger and trip leg</h3>
+        <p><code>passenger_ids</code> is a list, so explode it first. Not every seat links to a trip leg, so that join is a LEFT JOIN. The query shows one booking; all current seats are millions of rows.</p>
+      </div>
+      <div class="codebox">
+        <div class="codebar"><span>SQL</span><button type="button" class="copy" data-copy="sql7">Copy</button></div>
+        <pre tabindex="0"><code id="sql7">WITH seat AS (
+  SELECT booking_id, coach_number, place_numbers,
+         trip_leg_coverage_trip_id, trip_leg_coverage_leg_id,
+         explode(passenger_ids) AS passenger_ref
+  FROM commercial_prd.csf_cleansed.book_reserved_place
+  WHERE _app_valid_to = '9999-12-31'
+    AND booking_id = '&lt;booking_id&gt;'
+)
+SELECT seat.booking_id, seat.coach_number, seat.place_numbers,
+       p.type AS passenger_type, l.trip_leg_index
+FROM seat
+JOIN commercial_prd.csf_cleansed.book_passenger p
+  ON p.booking_id = seat.booking_id
+ AND p.external_ref = seat.passenger_ref
+ AND p._app_valid_to = '9999-12-31'
+LEFT JOIN commercial_prd.csf_cleansed.book_trip_leg l
+  ON l.booking_id = seat.booking_id
+ AND l.trip_id = seat.trip_leg_coverage_trip_id
+ AND l.trip_leg_index = cast(seat.trip_leg_coverage_leg_id AS INT)
+ AND l._app_valid_to = '9999-12-31';</code></pre>
+      </div>
+    </article>
+
+    <article class="q" id="q8">
+      <div>
+        <span class="qn">08</span>
+        <h3>Refund offers by status</h3>
+      </div>
+      <div class="codebox">
+        <div class="codebar"><span>SQL</span><button type="button" class="copy" data-copy="sql8">Copy</button></div>
+        <pre tabindex="0"><code id="sql8">SELECT r.status,
+       count(*) AS refund_offers,
+       sum(r.refundable_amount_amount / power(10, r.refundable_amount_scale)) AS refundable,
+       sum(r.refund_fee_amount / power(10, r.refund_fee_scale)) AS fees
+FROM commercial_prd.csf_cleansed.book b
+JOIN commercial_prd.csf_cleansed.book_refund_offer r
+  ON r.booking_id = b.booking_id
+ AND r._app_valid_to = '9999-12-31'
+WHERE b._app_valid_to = '9999-12-31'
+  AND b.created_on &gt;= '2026-10-01' AND b.created_on &lt; '2026-11-01'
+GROUP BY ALL
+ORDER BY refund_offers DESC;</code></pre>
+      </div>
+    </article>
+
+    <article class="q" id="q9">
+      <div>
+        <span class="qn">09</span>
+        <h3>Products per trip leg (associations)</h3>
+        <p>The association lists every product considered for a trip leg, with a status. Only booked products match <code>book_offer_product</code>, so that join is a LEFT JOIN. It is the largest table, so expect about a minute for one month.</p>
+      </div>
+      <div class="codebox">
+        <div class="codebar"><span>SQL</span><button type="button" class="copy" data-copy="sql9">Copy</button></div>
+        <pre tabindex="0"><code id="sql9">SELECT a.product_code, a.status_code, pr.travel_class, l.trip_leg_index,
+       count(*) AS associations
+FROM commercial_prd.csf_cleansed.book b
+JOIN commercial_prd.csf_cleansed.book_offer_trip_leg_product_association a
+  ON a.booking_id = b.booking_id
+ AND a._app_valid_to = '9999-12-31'
+JOIN commercial_prd.csf_cleansed.book_offer o
+  ON o.booking_id = a.booking_id
+ AND o.offer_id = a.offer_id
+ AND o._app_valid_to = '9999-12-31'
+LEFT JOIN commercial_prd.csf_cleansed.book_offer_product pr
+  ON pr.booking_id = a.booking_id
+ AND pr.offer_id = a.offer_id
+ AND pr.code = a.product_code
+ AND pr._app_valid_to = '9999-12-31'
+LEFT JOIN commercial_prd.csf_cleansed.book_trip_leg l
+  ON l.booking_id = a.booking_id
+ AND l.trip_id = o.trip_coverage_covered_trip_id
+ AND l.trip_leg_index = a.trip_leg_index
+ AND l._app_valid_to = '9999-12-31'
+WHERE b._app_valid_to = '9999-12-31'
+  AND b.created_on &gt;= '2026-10-01' AND b.created_on &lt; '2026-11-01'
+GROUP BY ALL
+ORDER BY associations DESC;</code></pre>
+      </div>
+    </article>
+
+    <article class="q" id="q10">
+      <div>
+        <span class="qn">10</span>
+        <h3>Passengers per passenger type on admissions</h3>
+        <p>One passenger can hold several types on one admission, so count distinct <code>passenger_ref</code>.</p>
+      </div>
+      <div class="codebox">
+        <div class="codebar"><span>SQL</span><button type="button" class="copy" data-copy="sql10">Copy</button></div>
+        <pre tabindex="0"><code id="sql10">SELECT t.passenger_type,
+       count(DISTINCT t.booking_id, t.passenger_ref) AS passengers
+FROM commercial_prd.csf_cleansed.book b
+JOIN commercial_prd.csf_cleansed.book_admission a
+  ON a.booking_id = b.booking_id
+ AND a._app_valid_to = '9999-12-31'
+JOIN commercial_prd.csf_cleansed.book_admission_passenger_type t
+  ON t.booking_id = a.booking_id
+ AND t.offer_id = a.offer_id
+ AND t.admission_id = a.admission_id
+ AND t._app_valid_to = '9999-12-31'
+WHERE b._app_valid_to = '9999-12-31'
+  AND b.created_on &gt;= '2026-10-01' AND b.created_on &lt; '2026-11-01'
+GROUP BY ALL
+ORDER BY passengers DESC;</code></pre>
+      </div>
+    </article>
+
+    <article class="q" id="q11">
+      <div>
+        <span class="qn">11</span>
+        <h3>A booking's history with its detail rows (time travel)</h3>
+        <p>For each booking version, take the passenger version that was valid at that time. The same rule works for every table.</p>
+      </div>
+      <div class="codebox">
+        <div class="codebar"><span>SQL</span><button type="button" class="copy" data-copy="sql11">Copy</button></div>
+        <pre tabindex="0"><code id="sql11">SELECT b._app_valid_from, b.fulfillment_type, p.passenger_id, p.type AS passenger_type
+FROM commercial_prd.csf_cleansed.book b
+JOIN commercial_prd.csf_cleansed.book_passenger p
+  ON p.booking_id = b.booking_id
+ AND p._app_valid_from &lt;= b._app_valid_from
+ AND b._app_valid_from &lt; p._app_valid_to
+WHERE b.booking_code = 'ABC123'
+ORDER BY b._app_valid_from, p.passenger_id;</code></pre>
+      </div>
+    </article>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p>Source: docs/handover in bi-dlh-commercial-csf. If this page and the Markdown files differ, the Markdown files win.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var links = document.querySelectorAll('.line a[href^="#"]');
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting || !byId[e.target.id]) return;
+        links.forEach(function (a) { a.removeAttribute('aria-current'); });
+        byId[e.target.id].setAttribute('aria-current', 'location');
+      });
+    }, { rootMargin: '-40% 0px -55% 0px' });
+    document.querySelectorAll('main section[id]').forEach(function (s) { io.observe(s); });
+  }
+  function fallbackCopy(text) {
+    var t = document.createElement('textarea');
+    t.value = text;
+    t.setAttribute('readonly', '');
+    t.style.position = 'fixed';
+    t.style.opacity = '0';
+    document.body.appendChild(t);
+    t.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+    document.body.removeChild(t);
+    return ok;
+  }
+  document.querySelectorAll('button.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = document.getElementById(btn.getAttribute('data-copy')).textContent;
+      function done(ok) {
+        btn.textContent = ok ? 'Copied' : 'Copy failed';
+        setTimeout(function () { btn.textContent = 'Copy'; }, 1800);
+      }
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(fallbackCopy(text)); });
+      } else {
+        done(fallbackCopy(text));
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
