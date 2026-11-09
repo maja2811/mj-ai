@@ -1,0 +1,155 @@
+{
+  "skill_name": "dlh-bi-estimation",
+  "benchmark_context": "The user asks for BI delivery effort. Estimate only authorized remaining scope, distinguish evidence states, and keep scenarios and uncertainty explicit.",
+  "evals": [
+    {
+      "id": "estimate-001",
+      "prompt": "Review this implemented source layer against the accepted target. Mark proven reuse, changes, and missing pieces, then estimate only what remains.",
+      "expected_output": "The estimate credits only verified reuse, sizes named gaps, and distinguishes existing/change, new, and unverified capabilities.",
+      "expectations": [
+        "Credits existing/reuse only when evidence proves fit and excludes it from remaining hours.",
+        "Estimates only the identified change for existing/change capability.",
+        "Keeps unverified existence or fitness visible and avoids assuming a rebuild."
+      ],
+      "files": [],
+      "tags": ["reuse", "remaining-work"]
+    },
+    {
+      "id": "estimate-002",
+      "prompt": "The source contract is unconfirmed, but planning needs a bounded option. Show discovery separately from a conditional build, name the trigger, and state confidence and readiness.",
+      "expected_output": "The estimate separates discovery and conditional implementation, names the assumed contract and trigger, and keeps confidence separate from readiness and scope approval.",
+      "expectations": [
+        "Shows discovery and implementation in separate point-valued components or scenarios.",
+        "Names the contract assumption and condition for selecting the build scenario.",
+        "States confidence, readiness, and scope approval as different properties.",
+        "Does not describe a conditional build as approved or committed."
+      ],
+      "files": [],
+      "tags": ["unverified", "scenarios"]
+    },
+    {
+      "id": "estimate-003",
+      "prompt": "If the current reporting interface proves sufficient, we will not build a separate dataset. Keep the assessment and decision effort in the no-build case.",
+      "expected_output": "The no-build alternative removes only the conditional implementation; discovery/sufficiency assessment remains priced and evidence-linked.",
+      "expectations": [
+        "Keeps discovery or sufficiency-decision effort in the no-build alternative.",
+        "Removes only the unsupported conditional implementation from that alternative.",
+        "Does not collapse the no-build case to zero effort without evidence."
+      ],
+      "files": [],
+      "tags": ["conditional-build", "retained-discovery"]
+    },
+    {
+      "id": "estimate-004",
+      "prompt": "Three workstreams depend on the same mapping workshops. Allocate that shared effort once and show the one owner plus its dependencies.",
+      "expected_output": "The shared workshop work appears once under an accountable owner; dependent workstreams reference it rather than summing duplicates.",
+      "expectations": [
+        "Assigns one unique owner/component for shared effort.",
+        "References shared effort from dependent workstreams without adding it repeatedly."
+      ],
+      "files": [],
+      "tags": ["ownership", "consolidation"]
+    },
+    {
+      "id": "estimate-005",
+      "prompt": "Build a consolidated estimate from these workstream scenarios. Keep mutually exclusive options apart, show only compatible adders in the worst case, and list the unpriced requirement.",
+      "expected_output": "The consolidation separates baseline, conditional additions, compatible worst case, and unpriced scope without stacking alternatives that cannot coexist.",
+      "expectations": [
+        "Shows a distinct selected baseline and conditional scenario additions.",
+        "Excludes mutually exclusive options from the same worst-case combination.",
+        "Lists unpriced scope rather than treating it as zero or silently adding it."
+      ],
+      "files": [],
+      "tags": ["consolidation", "alternatives"]
+    },
+    {
+      "id": "estimate-006",
+      "prompt": "Give a BI estimate, including owner clarification, review/rework, tests, UAT, and release. The external source team's implementation and the time we wait for them are outside BI effort.",
+      "expected_output": "The estimate includes required BI human/delivery effort and shows external implementation and passive waiting as dependencies, not BI hours.",
+      "expectations": [
+        "Includes relevant BI clarification, review/rework, tests, UAT, and release work.",
+        "Excludes external-team implementation and passive waiting from BI effort.",
+        "Shows external work as a named dependency or blocker."
+      ],
+      "files": [],
+      "tags": ["scope-boundary", "delivery-effort"]
+    },
+    {
+      "id": "estimate-007",
+      "prompt": "A customer activity feed arrives daily. The source contract says corrections may arrive several days late and deletions arrive as tombstones. After parser fixes, BI must replay historical files; downstream daily aggregates need recomputation when corrected activity changes. Estimate remaining BI effort and identify any contract details that still need confirmation. The source team owns its delivery contract and implementation.",
+      "expected_output": "The estimate treats replay/backfill, late arrivals, tombstone handling, and downstream recomputation as conditional data-lifecycle drivers, sizes only BI work, and records unresolved contract details and external source work as dependencies without inventing durations.",
+      "expectations": [
+        "Identifies replay/backfill and the scope of historical data as sizing drivers.",
+        "Accounts for late corrections, tombstone/delete semantics, and affected downstream recomputation when estimating BI work.",
+        "Names unresolved source-contract facts as assumptions or dependencies rather than inventing them.",
+        "Excludes source-team implementation and passive waits from BI hours; does not assume a default duration."
+      ],
+      "files": [],
+      "tags": ["data-lifecycle", "remaining-work"]
+    },
+    {
+      "id": "estimate-008",
+      "prompt": "Replace an existing BI sales dataset used by three dashboards. BI owns the new dataset, old/new parity checks, cutover, rollback, and post-release support. The reporting team owns dashboard code changes; its implementation and waiting time are outside BI effort. Preserve existing keys and history for consumers. Estimate BI work and state the ownership boundaries.",
+      "expected_output": "The estimate sizes BI compatibility and history-seam work, parallel parity/reconciliation, acceptance, cutover, rollback, and post-release support. It records reporting-team dashboard changes as an external dependency and assigns transition work once to its actual owner.",
+      "expectations": [
+        "Includes compatibility and historical-seam work needed to preserve consumer keys/history.",
+        "Includes BI-owned parallel parity/reconciliation, acceptance, cutover, rollback, and post-release support where in scope.",
+        "Excludes dashboard-team implementation and passive waiting from BI effort while recording the dependency.",
+        "Assigns source, shared, and consumer transition tasks to their actual owners without double-counting."
+      ],
+      "files": [],
+      "tags": ["replacement", "migration", "ownership"]
+    },
+    {
+      "id": "estimate-009",
+      "prompt": "Two BI outputs each need their own data checks, monitoring, tests, and deployment. They share one runbook, alert route, and release-coordination task owned by BI operations. Estimate the work and show how you allocate the shared operations work.",
+      "expected_output": "The estimate separates per-output DQ/monitoring/tests/deployment from shared runbook, alert, and release coordination, assigning each shared task once to BI operations.",
+      "expectations": [
+        "Allocates applicable DQ, monitoring, tests, and deployment to each deliverable owner.",
+        "Counts the shared runbook, alert route, and release coordination once under BI operations.",
+        "Breaks effort into tasks, states sizing assumptions, and avoids blanket percentage uplifts or imported default hours."
+      ],
+      "files": [],
+      "tags": ["operations", "shared-ownership"]
+    },
+    {
+      "id": "estimate-010",
+      "prompt": "Use this synthetic fixture only; these task estimates are not default rates. The AI-assisted baseline is specification/steering 8 BI hours, coding 20, integration/tests 10, architecture 2, and review 4, total 44. BI owns both developer and reviewer roles. Move the 2 architecture and 4 review hours from the developer capacity lane to the reviewer lane. The PM proposes an unvalidated additional 50% reduction of the 20 coding hours only. Compare BI effort with role capacity and show the alternative without reapplying baseline AI assistance.",
+      "expected_output": "Role allocation changes capacity lanes but preserves the 44-hour baseline effort. The user-selected coding-only 50% reduction removes 10 hours once, giving a 34-hour provisional alternative; the baseline remains unchanged and the factor is not applied to other work.",
+      "expectations": [
+        "Shows 44 BI hours as baseline task effort and keeps architecture and review hours in total BI effort when moving them to a reviewer lane.",
+        "Separates effort totals from role/capacity allocation and does not double-count moved work.",
+        "Applies the user-selected 50% reduction only once to the 20 coding hours, showing 10 coding hours and a 34-hour provisional alternative.",
+        "States that the baseline already assumes AI assistance and does not apply the new factor to specification, integration/tests, architecture, or review."
+      ],
+      "files": [],
+      "tags": ["role-capacity", "productivity-assumption"]
+    },
+    {
+      "id": "estimate-011",
+      "prompt": "The two deliverables have 100 BI hours in total, including 12 hours already allocated to architecture/review. The PM explicitly approves an additional coordination allowance of 5% on that 100-hour task base, owned by BI operations. Show the allowance separately. The external release manager owns their work, and their availability is a dependency.",
+      "expected_output": "The approved additional coordination allowance is 5 BI hours, bringing selected BI effort to 105 hours. It remains separate from the already-priced architecture/review effort and from external release-manager work/waiting.",
+      "expectations": [
+        "Calculates the approved allowance as 5 hours from the supplied 100-hour base and 5% rate.",
+        "Shows the allowance as distinct additional coordination work, not routine uncertainty contingency.",
+        "Does not duplicate the 12 architecture/review hours already in the base.",
+        "Excludes external release-manager work and passive waiting from BI hours while noting the dependency."
+      ],
+      "files": [],
+      "tags": ["coordination-allowance", "shared-ownership"]
+    },
+    {
+      "id": "estimate-012",
+      "prompt": "The full release contains deliverables A, B, and C. The PM's target is 8 weeks, but no team availability or throughput data is available. A and B have approved source contracts and acceptance checks. C still needs source contract approval and has no agreed acceptance test. Compare full and phased options: phase A and B only if their gates pass; defer C if its contract is not approved. The current reports can remain as rollback fallback under the reporting owner's control.",
+      "expected_output": "The estimate compares full and phased scope, keeps C visible as deferred rather than dropping it, names the contract/acceptance gates and owner, retains the existing report fallback, and does not promise the 8-week target without capacity evidence.",
+      "expectations": [
+        "Separates A/B phase scope from deferred C and retains C in the full-scope view.",
+        "Names C's missing source-contract approval and acceptance test as gates with an owner to confirm.",
+        "States the rollback fallback and reporting owner.",
+        "Does not guarantee the 8-week target without team capacity/throughput evidence."
+      ],
+      "files": [],
+      "tags": ["deadline-options", "phased-scope", "readiness"]
+    }
+  ]
+}

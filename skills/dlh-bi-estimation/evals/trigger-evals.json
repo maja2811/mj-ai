@@ -1,0 +1,10 @@
+[
+  {"id":"estimate-trigger-001","query":"Estimate remaining BI engineering effort from the repository evidence and accepted requirements.","should_trigger":true,"reason":"Requests a remaining-work BI estimate."},
+  {"id":"estimate-trigger-002","query":"Compare these two BI delivery options and show the conditional adders and confidence.","should_trigger":true,"reason":"Requests scenario effort and confidence analysis."},
+  {"id":"estimate-trigger-003","query":"Consolidate these workstream estimates without counting shared work twice.","should_trigger":true,"reason":"Requests estimate consolidation and deduplication."},
+  {"id":"estimate-trigger-004","query":"What is a reasonable person-hour estimate for the BI data model after checking what we can reuse?","should_trigger":true,"reason":"Requests BI effort sizing and reuse analysis."},
+  {"id":"estimate-trigger-005","query":"Design the fact and dimension tables and show the grain and keys.","should_trigger":false,"reason":"Design-only requests belong to dlh-bi-solution-design."},
+  {"id":"estimate-trigger-006","query":"Add the totals from these invoice line items and calculate VAT.","should_trigger":false,"reason":"Invoice arithmetic is not delivery estimation."},
+  {"id":"estimate-trigger-007","query":"Forecast next quarter's passenger demand from these monthly counts.","should_trigger":false,"reason":"Unrelated analytical forecasting is outside this skill."},
+  {"id":"estimate-trigger-008","query":"Create a high-level architecture page and estimate the implementation effort for its workstreams.","should_trigger":true,"reason":"Combined design and estimate requests can load both specialist skills."}
+]

@@ -1,0 +1,10 @@
+[
+  {"id":"design-trigger-001","query":"Design the BI architecture and data contracts for the source and reporting product described here.","should_trigger":true,"reason":"Requests a BI solution design and architecture."},
+  {"id":"design-trigger-002","query":"Draw a fact and dimension star for one sale per line, with its grain, keys, and measures.","should_trigger":true,"reason":"Requests a focused fact/dimension star."},
+  {"id":"design-trigger-003","query":"Combine the system flows and the supplied dimensional model into a solution design for our PM and architect.","should_trigger":true,"reason":"Requests combined architecture and model design."},
+  {"id":"design-trigger-004","query":"Show the fact grain and relationship direction for these Power BI dimensions.","should_trigger":true,"reason":"Requests BI dimensional-model design, not generic connector help."},
+  {"id":"design-trigger-005","query":"Estimate the remaining hours for the accepted backlog and compare the two implementation options.","should_trigger":false,"reason":"Effort and scenario sizing belong to dlh-bi-estimation."},
+  {"id":"design-trigger-006","query":"Add up these invoice line amounts and calculate tax.","should_trigger":false,"reason":"Invoice arithmetic is not BI solution design."},
+  {"id":"design-trigger-007","query":"Create a marketing website layout and pick a brand style.","should_trigger":false,"reason":"Generic web UI and brand design are outside this skill."},
+  {"id":"design-trigger-008","query":"Set up the Power BI connector to a Databricks SQL warehouse.","should_trigger":false,"reason":"Generic connector setup is outside this skill."}
+]

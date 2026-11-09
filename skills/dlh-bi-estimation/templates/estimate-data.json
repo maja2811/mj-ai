@@ -1,0 +1,102 @@
+{
+  "notice": "Synthetic validation fixture only. Replace every project field and value with authorized evidence; none is a sizing default.",
+  "project": "Example project (synthetic)",
+  "scope_status": "Draft; not approved",
+  "readiness": "Evidence review pending",
+  "confidence": 2,
+  "unit": "BI person-hours",
+  "blockers": [
+    {"text": "Confirm the source contract", "owner": "Source owner", "references": ["REQ-01"]}
+  ],
+  "assumptions": [
+    {"text": "The sample contract represents the required feed", "owner": "BI owner", "references": ["REQ-01"]}
+  ],
+  "dependencies": [
+    {"text": "Approved source contract", "owner": "Source owner", "needed_for": "DATA-01", "references": ["REQ-01"]}
+  ],
+  "decisions": [
+    {"text": "Choose whether the optional output is required", "owner": "Product owner", "references": ["REQ-02"]}
+  ],
+  "architecture": [],
+  "references": {
+    "REQ-01": "Synthetic requirement fixture",
+    "REQ-02": "Synthetic decision fixture"
+  },
+  "components": [
+    {
+      "id": "DISC-01",
+      "title": "Clarify the contract and prove the decision",
+      "status": "New",
+      "kind": "discovery",
+      "hours": 8,
+      "owner": "BI team",
+      "ownership_key": "synthetic-contract-discovery",
+      "condition": "Required before the optional build decision",
+      "references": ["REQ-01", "REQ-02"],
+      "prerequisites": []
+    },
+    {
+      "id": "DATA-01",
+      "title": "Build the bounded source output",
+      "status": "New",
+      "kind": "implementation",
+      "hours": 13,
+      "owner": "BI team",
+      "ownership_key": "synthetic-source-output",
+      "condition": "After the contract is accepted",
+      "references": ["REQ-01"],
+      "prerequisites": ["DISC-01"]
+    },
+    {
+      "id": "OPT-01",
+      "title": "Optional output build",
+      "status": "Conditional",
+      "kind": "implementation",
+      "hours": 5,
+      "owner": "BI team",
+      "ownership_key": "synthetic-optional-output",
+      "condition": "Only if discovery proves it is needed",
+      "alternative_group": "synthetic-output-choice",
+      "alternative": "build",
+      "references": ["REQ-02"],
+      "prerequisites": ["DISC-01"]
+    },
+    {
+      "id": "OPT-02",
+      "title": "No-build decision record",
+      "status": "Conditional",
+      "kind": "decision",
+      "hours": 0,
+      "owner": "BI team",
+      "ownership_key": "synthetic-no-build-decision",
+      "condition": "Selected only when existing outputs meet acceptance",
+      "alternative_group": "synthetic-output-choice",
+      "alternative": "no-build",
+      "references": ["REQ-02"],
+      "prerequisites": ["DISC-01"]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "baseline",
+      "label": "Baseline",
+      "includes": ["DISC-01", "DATA-01"],
+      "extends": [],
+      "must_retain_discovery": false
+    },
+    {
+      "id": "no-build",
+      "label": "No-build after discovery",
+      "includes": ["OPT-02"],
+      "extends": ["baseline"],
+      "must_retain_discovery": true
+    },
+    {
+      "id": "with-build",
+      "label": "Conditional build",
+      "includes": ["OPT-01"],
+      "extends": ["baseline"],
+      "must_retain_discovery": true
+    }
+  ]
+}

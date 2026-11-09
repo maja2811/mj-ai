@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Reusable BI solution-design overview">
+  <title>[Project] | BI solution design</title>
+  <style>
+    :root{--red:#e2001a;--red-dark:#b60017;--ink:#242424;--muted:#66686d;--canvas:#eceff1;--soft:#f6f6f3;--line:#d5d5d0;--white:#fff;--yellow:#fff59d;--yellow-line:#d8ca54;--warning:#fff0f1;--sans:Arial,Helvetica,sans-serif;--serif:Georgia,"Times New Roman",serif;--shadow:0 10px 28px rgb(0 0 0 / 10%)}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--canvas);color:var(--ink);font:16px/1.5 var(--sans)}a{color:var(--red-dark)}:focus-visible{outline:2px solid var(--ink);outline-offset:3px;box-shadow:0 0 0 6px var(--yellow)}
+    .shell{min-height:100vh;display:grid;grid-template-columns:260px minmax(0,1fr)}.sidebar{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;padding:26px 22px 20px;background:var(--white);border-right:1px solid var(--line)}.brand{display:flex;align-items:center;gap:13px;color:var(--ink);text-decoration:none}.brand img{width:48px;height:48px;object-fit:contain}.brand strong,.brand span span{display:block}.brand strong{font-size:14px;letter-spacing:.08em;text-transform:uppercase}.brand span span{color:var(--muted);font-size:12px}.nav{display:grid;gap:4px;margin-top:48px}.nav a{padding:11px 10px;border-left:3px solid transparent;color:var(--muted);font-size:14px;text-decoration:none}.nav a:hover,.nav a:focus{background:var(--soft);color:var(--ink)}.side-foot{margin-top:auto;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+    main{min-width:0;padding:clamp(28px,5vw,72px)}.page-head,.content{max-width:1180px;margin:0 auto}.page-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:end;margin-bottom:32px;padding-bottom:22px;border-bottom:1px solid var(--line)}h1,h2,h3,p{margin-top:0}h1{max-width:850px;margin-bottom:0;font:400 clamp(38px,5.6vw,78px)/.98 var(--serif);letter-spacing:-.045em}h2{font:400 clamp(28px,3.2vw,46px)/1.08 var(--serif);letter-spacing:-.03em}h3{font-size:16px}.kicker{margin:0 0 12px;color:var(--red-dark);font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}.lede{max-width:760px;margin:16px 0 0;color:var(--muted);font-size:clamp(16px,1.6vw,20px)}.page-index{color:#929398;font:42px var(--serif);font-variant-numeric:tabular-nums}
+    .section-block{margin-top:42px;padding-top:26px;border-top:1px solid var(--line)}.section-intro{display:grid;grid-template-columns:minmax(0,.8fr) minmax(300px,1.2fr);gap:32px;margin-bottom:24px}.section-intro p{margin:0;color:var(--muted)}.warning-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;margin-top:22px;border:1px solid var(--line);background:var(--line)}.warning-item{padding:20px;background:var(--white)}.warning-item strong{display:block;margin-bottom:6px;font-size:15px}.warning-item p{margin:0;color:var(--muted);font-size:14px}.warning-item.critical{background:var(--warning)}.note{padding:16px 18px;border-left:4px solid var(--yellow-line);background:var(--yellow)}
+    .diagram-frame{overflow-x:auto;padding:18px;border:1px solid var(--line);background:var(--white);box-shadow:var(--shadow)}.diagram{display:block;width:100%;min-width:900px;height:auto;font-family:var(--sans)}.diagram .lane{fill:var(--soft);stroke:var(--line);stroke-width:1.5}.diagram .node{fill:var(--white);stroke:#777;stroke-width:1.5}.diagram .owner-a{fill:#f8e9eb;stroke:var(--red-dark)}.diagram .owner-b{fill:#eef1f3}.diagram .contract{fill:#fffbe0;stroke:var(--yellow-line)}.diagram .label{fill:var(--ink);font-size:17px;font-weight:700}.diagram .sub{fill:var(--muted);font-size:15px}.diagram .lane-label{fill:var(--muted);font-size:15px;font-weight:700;letter-spacing:.08em}.diagram .flow{fill:none;stroke:#55575c;stroke-width:2;marker-end:url(#arrow)}.diagram .conditional{stroke-dasharray:7 6}.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;color:var(--muted);font-size:14px}.legend span{padding:5px 10px;border:1px solid var(--line);background:var(--white)}
+    @media(max-width:980px){.shell{display:block}.sidebar{position:static;height:auto;padding:12px 18px;border:0;border-bottom:1px solid var(--line)}.nav{display:flex;gap:8px;margin:8px 0 0;overflow:auto}.nav a{flex:none;padding:6px 8px}.side-foot{display:none}main{padding:34px 22px 60px}}
+    @media(max-width:620px){main{padding:28px 16px 48px}.page-head{grid-template-columns:1fr;gap:12px;margin-bottom:22px}.page-index{display:none}.section-intro,.warning-grid{grid-template-columns:1fr}.diagram-frame{padding:10px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+    @media print{@page{size:A4 landscape;margin:12mm}body{background:var(--white);font-size:10pt}.shell{display:block}.sidebar{display:none}main{padding:0}.section-block,.diagram-frame,.warning-item{break-inside:avoid}.diagram{min-width:0}.section-intro,.warning-grid{break-inside:avoid}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Design sections">
+      <a class="brand" href="#overview"><img src="../assets/dsb-logo.png" alt="DSB logo"><span><strong>[Project]</strong><span>BI solution design</span></span></a>
+      <nav class="nav"><a href="#overview">Overview</a><a href="#architecture">Architecture</a><a href="#contracts">Contracts and controls</a><a href="#coverage">Requirements</a><a href="#decisions">Decisions</a></nav>
+      <p class="side-foot">Replace bracketed text with reviewed project evidence. This template carries no project defaults.</p>
+    </aside>
+    <main id="overview">
+      <header class="page-head"><div><p class="kicker">BI solution design · [version/date]</p><h1>[Project purpose and outcome]</h1><p class="lede">[One-sentence design summary for the PM, architect, and delivery owners.]</p></div><span class="page-index" aria-hidden="true">01</span></header>
+      <div class="content">
+        <div class="warning-grid" aria-label="Scope and ownership summary">
+          <article class="warning-item"><strong>In scope</strong><p>[Approved outcomes and users. Mark proposed requirements separately.]</p></article>
+          <article class="warning-item"><strong>Outputs and consumers</strong><p>[Data products, reports, and consuming teams.]</p></article>
+          <article class="warning-item"><strong>Evidence reviewed</strong><p>[Authorized sources and evidence date.]</p></article>
+          <article class="warning-item critical"><strong>Open decisions</strong><p>[Decision, owner, evidence needed, and effect if unresolved.]</p></article>
+        </div>
+
+        <section class="section-block" id="architecture">
+          <div class="section-intro"><div><p class="kicker">Boundaries and data flow</p><h2>Architecture at a glance</h2></div><p>Use solid arrows for data/model flow and dashed arrows for reconciliation or conditional control paths. Name every owner. Remove layers that do not apply.</p></div>
+          <div class="diagram-frame">
+            <svg class="diagram" viewBox="0 0 1180 360" role="img" aria-labelledby="architecture-title architecture-desc">
+              <title id="architecture-title">[Project] BI architecture</title><desc id="architecture-desc">Proposed source-to-consumer data flow with owner labels and a separate conditional control path.</desc>
+              <defs><marker id="arrow" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto"><path d="M0 0L9 3.5L0 7Z" fill="#55575c"/></marker></defs>
+              <rect class="lane" x="180" y="46" width="145" height="250"/><rect class="lane" x="350" y="46" width="145" height="250"/><rect class="lane" x="520" y="46" width="145" height="250"/><rect class="lane" x="690" y="46" width="180" height="250"/>
+              <text class="lane-label" x="252" y="72" text-anchor="middle">SOURCE / RAW</text><text class="lane-label" x="422" y="72" text-anchor="middle">CLEANSED</text><text class="lane-label" x="592" y="72" text-anchor="middle">CURATED</text><text class="lane-label" x="780" y="72" text-anchor="middle">DATA PRODUCT</text>
+              <rect class="node owner-a" x="15" y="130" width="145" height="82"/><text class="label" x="87" y="164" text-anchor="middle">[Source]</text><text class="sub" x="87" y="190" text-anchor="middle">Owner: [team]</text>
+              <rect class="node owner-a" x="190" y="130" width="125" height="82"/><text class="label" x="252" y="164" text-anchor="middle">[Raw output]</text><text class="sub" x="252" y="190" text-anchor="middle">Owner: [team]</text>
+              <rect class="node owner-b" x="360" y="130" width="125" height="82"/><text class="label" x="422" y="164" text-anchor="middle">[Trusted output]</text><text class="sub" x="422" y="190" text-anchor="middle">Owner: [team]</text>
+              <rect class="node owner-b" x="530" y="130" width="125" height="82"/><text class="label" x="592" y="164" text-anchor="middle">[Model]</text><text class="sub" x="592" y="190" text-anchor="middle">Grain / key: [detail]</text>
+              <rect class="node owner-a" x="700" y="130" width="160" height="82"/><text class="label" x="780" y="164" text-anchor="middle">[BI output]</text><text class="sub" x="780" y="190" text-anchor="middle">Owner: [team]</text>
+              <rect class="node" x="900" y="130" width="250" height="82"/><text class="label" x="1025" y="164" text-anchor="middle">[Consumer / report]</text><text class="sub" x="1025" y="190" text-anchor="middle">Owner: [team]</text>
+              <path class="flow" d="M160 171H190M315 171H360M485 171H530M655 171H700M860 171H900"/>
+              <rect class="node contract" x="380" y="242" width="280" height="62"/><text class="label" x="520" y="269" text-anchor="middle">[Control / reconciliation]</text><text class="sub" x="520" y="291" text-anchor="middle">Owner: [team] · condition: [trigger]</text><path class="flow conditional" d="M660 272H780V216"/>
+            </svg>
+          </div>
+          <div class="legend"><span>Solid: data or model flow</span><span>Dashed: control, reconciliation, or conditional path</span><span>Color is paired with a written owner</span></div>
+        </section>
+
+        <section class="section-block" id="contracts">
+          <div class="section-intro"><div><p class="kicker">Contracts and operations</p><h2>What each handoff guarantees</h2></div><p>Capture only requirements that affect this design. Unknown contract details remain explicit.</p></div>
+          <div class="warning-grid">
+            <article class="warning-item"><strong>Data contract</strong><p>Producer / consumer: [owner]. Grain, keys, schema, history, corrections: [details]. Refresh, volume, and delivery: [details].</p></article>
+            <article class="warning-item"><strong>Quality and controls</strong><p>Checks, accepted differences, control path, and evidence: [details and owner].</p></article>
+            <article class="warning-item"><strong>Security and operations</strong><p>Access/classification boundary, monitoring, recovery, and support owner: [details].</p></article>
+            <article class="warning-item"><strong>Testing and release</strong><p>Contract tests, UAT, acceptance evidence, deployment, and cutover dependencies: [details].</p></article>
+          </div>
+        </section>
+
+        <section class="section-block" id="coverage">
+          <div class="section-intro"><div><p class="kicker">Traceability</p><h2>Requirements to outputs</h2></div><p>A tag or candidate list does not establish approval. Keep scope status and implementation state separate.</p></div>
+          <div class="diagram-frame"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:12px;border-bottom:1px solid var(--line)">Requirement</th><th style="text-align:left;padding:12px;border-bottom:1px solid var(--line)">Scope / owner</th><th style="text-align:left;padding:12px;border-bottom:1px solid var(--line)">Output / acceptance</th></tr></thead><tbody><tr><td style="padding:12px;border-bottom:1px solid var(--line)">[REQ-01]</td><td style="padding:12px;border-bottom:1px solid var(--line)">[proposed/approved] · [owner]</td><td style="padding:12px;border-bottom:1px solid var(--line)">[output and evidence]</td></tr><tr><td style="padding:12px;border-bottom:1px solid var(--line)">[REQ-02]</td><td style="padding:12px;border-bottom:1px solid var(--line)">[proposed/approved] · [owner]</td><td style="padding:12px;border-bottom:1px solid var(--line)">[output and evidence]</td></tr><tr><td style="padding:12px">[REQ-03]</td><td style="padding:12px">[unknown/excluded] · [owner]</td><td style="padding:12px">[evidence needed / effect]</td></tr></tbody></table></div>
+          <p class="note" style="margin-top:16px"><strong>Unpriced or uncovered scope:</strong> [requirement, evidence gap, decision owner].</p>
+        </section>
+
+        <section class="section-block" id="decisions">
+          <div class="section-intro"><div><p class="kicker">Review and next slice</p><h2>Decisions that unblock delivery</h2></div><p>First vertical slice: [producer → accepted output → consumer]. Review with [PM, architect, owners, and users].</p></div>
+          <div class="warning-grid"><article class="warning-item critical"><strong>[Decision / blocker]</strong><p>Owner: [name/role]. Evidence: [needed]. Effect if unresolved: [scope or sequence].</p></article><article class="warning-item"><strong>Scope and exclusions</strong><p>[Approved scope, proposed work, explicit exclusions, and unknowns.]</p></article></div>
+        </section>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

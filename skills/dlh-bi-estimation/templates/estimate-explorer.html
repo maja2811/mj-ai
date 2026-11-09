@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Estimate explorer derived from an estimate ledger">
+  <link rel="icon" href="../assets/dsb-logo.png" type="image/png">
+  <title>[Project] | BI estimate</title>
+  <style>
+    :root{--red:#e2001a;--red-dark:#b60017;--ink:#242424;--muted:#66686d;--canvas:#eceff1;--soft:#f6f6f3;--line:#d5d5d0;--white:#fff;--yellow:#fff59d;--yellow-line:#d8ca54;--warning:#fff0f1;--sans:Arial,Helvetica,sans-serif;--serif:Georgia,"Times New Roman",serif;--shadow:0 10px 28px rgb(0 0 0 / 10%)}
+    *{box-sizing:border-box}body{margin:0;background:var(--canvas);color:var(--ink);font:16px/1.5 var(--sans)}:focus-visible{outline:2px solid var(--ink);outline-offset:3px;box-shadow:0 0 0 6px var(--yellow)}
+    main{max-width:1240px;margin:auto;padding:clamp(24px,5vw,64px)}.page-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:end;margin:0 auto 30px;padding-bottom:22px;border-bottom:1px solid var(--line)}h1,h2,h3,p{margin-top:0}h1{margin-bottom:0;font:400 clamp(38px,5.6vw,72px)/.98 var(--serif);letter-spacing:-.045em}h2{font:400 clamp(28px,3.2vw,44px)/1.08 var(--serif);letter-spacing:-.03em}h3{font-size:16px}.kicker{margin:0 0 12px;color:var(--red-dark);font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}.lede{max-width:760px;margin:16px 0 0;color:var(--muted);font-size:18px}.page-index{color:#929398;font:42px var(--serif)}
+    .hero-estimate{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.6fr);border:1px solid var(--line);background:var(--white)}.estimate-main{padding:clamp(24px,4vw,48px)}.hours{margin:14px 0 4px;color:var(--red);font:400 clamp(44px,7vw,88px)/.95 var(--serif);letter-spacing:-.06em;font-variant-numeric:tabular-nums}.unit{color:var(--muted)}.worst-case{display:flex;flex-direction:column;justify-content:center;padding:28px;background:var(--yellow);border-left:1px solid var(--yellow-line)}.worst-case strong{font:400 32px var(--serif)}.section{margin-top:38px;padding-top:24px;border-top:1px solid var(--line)}.note{padding:14px 16px;border-left:4px solid var(--yellow-line);background:#fffbe0}.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0}.toolbar select{min-height:42px;padding:8px 12px;border:1px solid var(--line);background:var(--white);color:var(--ink);font:inherit}.panel{padding:18px;border:1px solid var(--line);background:var(--white);box-shadow:var(--shadow)}.table-scroll{overflow:auto}.components,.scenarios{width:100%;border-collapse:collapse;background:var(--white)}.components th,.components td,.scenarios th,.scenarios td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.components th,.scenarios th{background:var(--soft);font-size:12px;text-transform:uppercase;letter-spacing:.06em}.num{font-variant-numeric:tabular-nums;text-align:right!important;white-space:nowrap}.share-track{min-width:90px;height:14px;background:#e7e7e3}.share-fill{height:100%;background:var(--red)}.scenario-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;border:1px solid var(--line);background:var(--line)}.scenario{padding:18px;background:var(--white)}.scenario strong{display:block;color:var(--red);font:400 30px var(--serif);font-variant-numeric:tabular-nums}.error{padding:14px;background:var(--warning);border-left:4px solid var(--red-dark)}
+    @media(max-width:720px){main{padding:26px 16px}.page-head{grid-template-columns:1fr}.page-index{display:none}.hero-estimate{grid-template-columns:1fr}.worst-case{border-left:0;border-top:1px solid var(--yellow-line)}.components{min-width:760px}.components th,.components td{padding:8px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+    @media print{@page{size:A4 landscape;margin:12mm}body{background:var(--white);font-size:10pt}main{padding:0}.hero-estimate,.panel,.scenario-list{box-shadow:none;break-inside:avoid}.components{font-size:9pt}}
+  </style>
+</head>
+<body>
+  <main>
+    <header class="page-head"><div><p class="kicker" id="project">BI delivery · working estimate</p><h1>Remaining BI effort</h1><p class="lede">Totals, shares, component detail, and scenarios are calculated from one validated estimate ledger.</p></div><span class="page-index" aria-hidden="true">01</span></header>
+    <section class="hero-estimate" aria-label="Selected scenario total"><div class="estimate-main"><label class="kicker" for="scenario">Selected scenario</label><div class="toolbar"><select id="scenario" aria-label="Estimate scenario"></select></div><div class="hours" id="total">—</div><div class="unit" id="unit">BI person-hours</div></div><aside class="worst-case"><span>Scope status</span><strong id="scope">Not supplied</strong><span id="readiness">Readiness and confidence remain separate.</span></aside></section>
+    <p class="note" style="margin-top:16px">Use <code>templates/estimate-data.json</code> as the master. Validate it, then copy its JSON here as the embedded snapshot; escape each &lt; as \u003c. Displays derive from this snapshot.</p>
+    <p class="note" id="notice" style="margin-top:8px">Replace synthetic fixture data with authorized evidence; no hours or owners are defaults.</p>
+    <section class="section"><h2>Selected components</h2><div class="panel table-scroll"><table class="components"><thead><tr><th>Component</th><th>Status / owner</th><th class="num">Hours</th><th>Share</th><th>Condition / evidence</th></tr></thead><tbody id="rows"></tbody><tfoot><tr><th colspan="2">Selected scenario total</th><th class="num" id="footer-total">—</th><th>100% when total &gt; 0</th><th></th></tr></tfoot></table></div></section>
+    <section class="section"><h2>Scenario comparison</h2><div class="scenario-list" id="scenario-list"></div></section>
+    <p id="error" class="error" role="alert" hidden></p>
+  </main>
+  <script id="estimate-data" type="application/json">
+  {
+    "notice": "Synthetic validation fixture only. Replace every project field and value with authorized evidence; none is a sizing default.",
+    "project": "Example project (synthetic)",
+    "scope_status": "Draft; not approved",
+    "readiness": "Evidence review pending",
+    "confidence": 2,
+    "unit": "BI person-hours",
+    "blockers": [
+      {"text": "Confirm the source contract", "owner": "Source owner", "references": ["REQ-01"]}
+    ],
+    "assumptions": [
+      {"text": "The sample contract represents the required feed", "owner": "BI owner", "references": ["REQ-01"]}
+    ],
+    "dependencies": [
+      {"text": "Approved source contract", "owner": "Source owner", "needed_for": "DATA-01", "references": ["REQ-01"]}
+    ],
+    "decisions": [
+      {"text": "Choose whether the optional output is required", "owner": "Product owner", "references": ["REQ-02"]}
+    ],
+    "architecture": [],
+    "references": {
+      "REQ-01": "Synthetic requirement fixture",
+      "REQ-02": "Synthetic decision fixture"
+    },
+    "components": [
+      {
+        "id": "DISC-01",
+        "title": "Clarify the contract and prove the decision",
+        "status": "New",
+        "kind": "discovery",
+        "hours": 8,
+        "owner": "BI team",
+        "ownership_key": "synthetic-contract-discovery",
+        "condition": "Required before the optional build decision",
+        "references": ["REQ-01", "REQ-02"],
+        "prerequisites": []
+      },
+      {
+        "id": "DATA-01",
+        "title": "Build the bounded source output",
+        "status": "New",
+        "kind": "implementation",
+        "hours": 13,
+        "owner": "BI team",
+        "ownership_key": "synthetic-source-output",
+        "condition": "After the contract is accepted",
+        "references": ["REQ-01"],
+        "prerequisites": ["DISC-01"]
+      },
+      {
+        "id": "OPT-01",
+        "title": "Optional output build",
+        "status": "Conditional",
+        "kind": "implementation",
+        "hours": 5,
+        "owner": "BI team",
+        "ownership_key": "synthetic-optional-output",
+        "condition": "Only if discovery proves it is needed",
+        "alternative_group": "synthetic-output-choice",
+        "alternative": "build",
+        "references": ["REQ-02"],
+        "prerequisites": ["DISC-01"]
+      },
+      {
+        "id": "OPT-02",
+        "title": "No-build decision record",
+        "status": "Conditional",
+        "kind": "decision",
+        "hours": 0,
+        "owner": "BI team",
+        "ownership_key": "synthetic-no-build-decision",
+        "condition": "Selected only when existing outputs meet acceptance",
+        "alternative_group": "synthetic-output-choice",
+        "alternative": "no-build",
+        "references": ["REQ-02"],
+        "prerequisites": ["DISC-01"]
+      }
+    ],
+    "scenarios": [
+      {
+        "id": "baseline",
+        "label": "Baseline",
+        "includes": ["DISC-01", "DATA-01"],
+        "extends": [],
+        "must_retain_discovery": false
+      },
+      {
+        "id": "no-build",
+        "label": "No-build after discovery",
+        "includes": ["OPT-02"],
+        "extends": ["baseline"],
+        "must_retain_discovery": true
+      },
+      {
+        "id": "with-build",
+        "label": "Conditional build",
+        "includes": ["OPT-01"],
+        "extends": ["baseline"],
+        "must_retain_discovery": true
+      }
+    ]
+  }
+  </script>
+  <script>
+    const byId = new Map();
+    const node = (tag, value) => { const el = document.createElement(tag); el.textContent = value; return el; };
+    function validateDisplayData(data) {
+      if (!data || !Array.isArray(data.components) || !Array.isArray(data.scenarios)) throw Error('Expected components and scenarios lists.');
+      for (const [list, name] of [[data.components,'component'],[data.scenarios,'scenario']]) {
+        const ids = new Set();
+        for (const row of list) {
+          if (!row || typeof row.id !== 'string' || !row.id.trim() || ids.has(row.id)) throw Error(`Invalid or duplicate ${name} ID.`);
+          ids.add(row.id);
+        }
+      }
+      byId.clear();
+      for (const item of data.components) {
+        if (typeof item.title !== 'string' || !item.title.trim() || typeof item.owner !== 'string' || !item.owner.trim() || !Number.isFinite(item.hours) || item.hours < 0) throw Error(`Invalid title, owner, or hours on ${item.id}.`);
+        byId.set(item.id,item);
+      }
+      const scenarioIds = new Set(data.scenarios.map((item)=>item.id));
+      for (const scenario of data.scenarios) {
+        if (!Array.isArray(scenario.includes) || !Array.isArray(scenario.extends) || scenario.includes.some((id)=>!byId.has(id)) || scenario.extends.some((id)=>!scenarioIds.has(id))) throw Error(`Invalid component or parent reference in ${scenario.id}.`);
+      }
+    }
+    function selectedIds(id, scenarios, visiting=new Set()) {
+      if (visiting.has(id)) throw Error(`Scenario inheritance cycle at ${id}.`);
+      const scenario=scenarios.get(id); if(!scenario) throw Error(`Unknown scenario ${id}.`);
+      visiting.add(id); const selected=new Set(scenario.includes);
+      for(const parent of scenario.extends) for(const component of selectedIds(parent,scenarios,visiting)) selected.add(component);
+      visiting.delete(id); return selected;
+    }
+    function render(data) {
+      validateDisplayData(data);
+      const scenarios=new Map(data.scenarios.map((item)=>[item.id,item]));
+      document.getElementById('project').textContent=data.project||'BI delivery · working estimate';
+      document.getElementById('scope').textContent=data.scope_status||'Not supplied';
+      document.getElementById('readiness').textContent=`${data.readiness||'Readiness not supplied'} · Confidence ${data.confidence??'not supplied'}/5`;
+      document.getElementById('unit').textContent=data.unit||'BI person-hours';
+      document.getElementById('notice').textContent=data.notice||'Use only authorized evidence. Validate this ledger before sharing.';
+      const select=document.getElementById('scenario');
+      for(const item of data.scenarios){const option=node('option',item.label||item.id);option.value=item.id;select.append(option);}
+      const update=()=>{
+        const ids=selectedIds(select.value,scenarios);const rows=[...ids].map((id)=>byId.get(id));
+        const total=rows.reduce((sum,item)=>sum+item.hours,0);if(!Number.isFinite(total))throw Error('Scenario total is not finite.');
+        document.getElementById('total').textContent=total.toLocaleString();document.getElementById('footer-total').textContent=total.toLocaleString();
+        const body=document.getElementById('rows');body.replaceChildren();
+        for(const item of rows){const tr=document.createElement('tr');tr.append(node('td',`${item.id} · ${item.title}`),node('td',`${item.status||'Status not supplied'} · ${item.owner}`),Object.assign(node('td',item.hours.toLocaleString()),{className:'num'}));
+          const share=total?item.hours/total*100:0;const shareCell=document.createElement('td');shareCell.append(node('span',`${share.toFixed(2)}%`));const track=document.createElement('div');track.className='share-track';track.setAttribute('aria-label',`${share.toFixed(2)} percent of selected effort`);const fill=document.createElement('div');fill.className='share-fill';fill.style.width=`${Math.min(100,share)}%`;track.append(fill);shareCell.append(track);tr.append(shareCell);
+          const refText=(item.references||[]).map((ref)=>`${ref}: ${(data.references||{})[ref]||'reference unavailable'}`).join('; ');tr.append(node('td',[item.condition||'Condition not supplied',refText].filter(Boolean).join(' · ')));body.append(tr);}
+        const cards=document.getElementById('scenario-list');cards.replaceChildren();
+        for(const item of data.scenarios){const card=document.createElement('article');card.className='scenario';const scenarioTotal=[...selectedIds(item.id,scenarios)].reduce((sum,component)=>sum+byId.get(component).hours,0);card.append(node('span',item.label||item.id),node('strong',`${scenarioTotal.toLocaleString()} h`),node('span',(item.includes||[]).length?`Components: ${item.includes.join(', ')}`:'Inherited components only'));cards.append(card);}
+      };
+      select.addEventListener('change',()=>{try{update();}catch(error){showError(error);}});update();
+    }
+    function showError(error){const box=document.getElementById('error');box.hidden=false;box.textContent=`Ledger display stopped: ${error.message}`;}
+    try{render(JSON.parse(document.getElementById('estimate-data').textContent));}catch(error){showError(error);}
+  </script>
+</body>
+</html>

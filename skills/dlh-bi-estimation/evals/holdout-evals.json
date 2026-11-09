@@ -1,0 +1,61 @@
+{
+  "skill_name": "dlh-bi-estimation",
+  "benchmark_context": "The user asks for BI delivery effort. Estimate only authorized remaining scope, distinguish evidence states, and keep scenarios and uncertainty explicit.",
+  "evals": [
+    {
+      "id": "estimate-holdout-001",
+      "prompt": "These tables exist, but we have not confirmed they meet the new contract. What should the estimate assume?",
+      "expected_output": "Technical existence is not reuse proof. Price fit/discovery and keep replacement work conditional until evidence confirms the gap.",
+      "expectations": [
+        "Does not equate table existence with accepted reusable capability.",
+        "Separates discovery from any conditional implementation allowance."
+      ],
+      "files": [],
+      "tags": ["holdout", "unverified"]
+    },
+    {
+      "id": "estimate-holdout-002",
+      "prompt": "Two build approaches cannot both be selected. Compare them separately and only total the add-ons that can coexist with our base plan.",
+      "expected_output": "Alternative approaches remain separate and the consolidated worst case contains only compatible options.",
+      "expectations": [
+        "Keeps mutually exclusive approaches in separate scenarios.",
+        "Does not add incompatible choices into the worst-case total."
+      ],
+      "files": [],
+      "tags": ["holdout", "alternatives"]
+    },
+    {
+      "id": "estimate-holdout-003",
+      "prompt": "The decision may show that we can reuse an existing product. Include the investigation needed to reach that decision even if no new product is built.",
+      "expected_output": "The reuse investigation remains in the no-build outcome; conditional implementation effort is removed only when not required.",
+      "expectations": [
+        "Prices or preserves decision/discovery effort in the no-build alternative.",
+        "Does not treat no build as no work by default."
+      ],
+      "files": [],
+      "tags": ["holdout", "retained-discovery"]
+    },
+    {
+      "id": "estimate-holdout-004",
+      "prompt": "Estimate one read-only view over a stable append-only table. Acceptance requires a schema check and one query test. There is no replay, correction/delete handling, consumer migration, or shared operations work in this task.",
+      "expected_output": "The estimate stays proportional to the stated view and acceptance checks, records only relevant delivery work, and does not impose a broad migration or operations checklist.",
+      "expectations": [
+        "Sizes the stated view and schema/query acceptance checks without inventing lifecycle or migration tasks.",
+        "Does not require an unrelated full-project checklist or shared operations allocation when the request excludes them."
+      ],
+      "files": [],
+      "tags": ["holdout", "proportional-scope"]
+    },
+    {
+      "id": "estimate-holdout-005",
+      "prompt": "Add one approved column mapping to an existing small BI view. Acceptance is one schema check and one query assertion. The mapping and owner are agreed. Give a short remaining-effort estimate; no migration, role/capacity plan, productivity adjustment, coordination allowance, or deadline comparison is requested.",
+      "expected_output": "A proportionate estimate covers the mapping change and stated checks without requiring unrelated role, AI-factor, overhead, migration, or deadline analysis.",
+      "expectations": [
+        "Sizes only the named mapping change and acceptance checks, using a concise task-based rationale.",
+        "Does not force broad role-capacity, productivity-factor, coordination-allowance, migration, or deadline questions when the request excludes them."
+      ],
+      "files": [],
+      "tags": ["holdout", "proportional-scope"]
+    }
+  ]
+}

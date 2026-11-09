@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Focused fact and dimension star schema template">
+  <title>[Project] | [Fact] star schema</title>
+  <style>
+    :root{--red:#e2001a;--red-dark:#b60017;--ink:#242424;--muted:#66686d;--canvas:#eceff1;--soft:#f6f6f3;--line:#d5d5d0;--white:#fff;--yellow:#fff59d;--yellow-line:#d8ca54;--warning:#fff0f1;--sans:Arial,Helvetica,sans-serif;--serif:Georgia,"Times New Roman",serif;--shadow:0 10px 28px rgb(0 0 0 / 10%)}
+    *{box-sizing:border-box}body{margin:0;background:var(--canvas);color:var(--ink);font:16px/1.5 var(--sans)}:focus-visible{outline:2px solid var(--ink);outline-offset:3px;box-shadow:0 0 0 6px var(--yellow)}
+    main{max-width:1320px;margin:auto;padding:clamp(24px,5vw,64px)}.page-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:end;margin:0 auto 28px;padding-bottom:22px;border-bottom:1px solid var(--line)}h1,h2,h3,p{margin-top:0}h1{margin-bottom:0;font:400 clamp(38px,5.6vw,72px)/.98 var(--serif);letter-spacing:-.045em}h2{font:400 clamp(28px,3.2vw,44px)/1.08 var(--serif);letter-spacing:-.03em}.kicker{margin:0 0 12px;color:var(--red-dark);font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}.lede{max-width:760px;margin:16px 0 0;color:var(--muted);font-size:18px}.page-index{color:#929398;font:42px var(--serif)}.panel{margin-top:24px;padding:22px;border:1px solid var(--line);background:var(--white);box-shadow:var(--shadow)}.diagram-scroll{overflow:auto}.star{display:block;width:100%;min-width:860px;height:auto;font-family:var(--sans)}.star .dim{fill:#fff;stroke:#777;stroke-width:1.5}.star .fact{fill:#fffbe0;stroke:var(--yellow-line);stroke-width:2}.star .rel{stroke:#55575c;stroke-width:2;marker-end:url(#arrow)}.star .label{fill:var(--ink);font-size:18px;font-weight:700}.star .field{fill:var(--muted);font-size:15px}.note{padding:16px 18px;border-left:4px solid var(--yellow-line);background:var(--yellow)}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;margin-top:22px;border:1px solid var(--line);background:var(--line)}.facts article{padding:18px;background:var(--white)}.facts strong{display:block;margin-bottom:5px}
+    @media(max-width:620px){main{padding:26px 16px}.page-head{grid-template-columns:1fr}.page-index{display:none}.panel{padding:12px}.facts{grid-template-columns:1fr}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+    @media print{@page{size:A4 landscape;margin:12mm}body{background:var(--white)}main{padding:0}.panel{box-shadow:none;break-inside:avoid}.star{min-width:0}}
+  </style>
+</head>
+<body>
+  <main>
+    <header class="page-head"><div><p class="kicker">[Project] · proposed dimensional model</p><h1>[Business process] star</h1><p class="lede">One focused model. Replace proposed fields with approved source evidence before implementation.</p></div><span class="page-index" aria-hidden="true">01</span></header>
+    <section class="panel" aria-labelledby="star-heading">
+      <h2 id="star-heading">[Fact name] and dimensions</h2>
+      <div class="diagram-scroll">
+        <svg class="star" viewBox="0 0 1180 590" role="img" aria-labelledby="title desc">
+          <title id="title">Proposed star schema for [Fact name]</title>
+          <desc id="desc">One central fact table links to four dimensions. Each dimension has one row for many fact rows.</desc>
+          <defs><marker id="arrow" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto"><path d="M0 0L9 3.5L0 7Z" fill="#55575c"/></marker></defs>
+          <rect class="dim" x="385" y="20" width="410" height="112"/><text class="label" x="590" y="50" text-anchor="middle">DIMENSION · [Date]</text><text class="field" x="590" y="78" text-anchor="middle">PK: [date_key] · BK: [if needed]</text><text class="field" x="590" y="106" text-anchor="middle">Attributes: [calendar attributes]</text>
+          <rect class="dim" x="20" y="230" width="370" height="112"/><text class="label" x="205" y="260" text-anchor="middle">DIMENSION · [Product]</text><text class="field" x="205" y="288" text-anchor="middle">PK: [product_key] · BK: [if needed]</text><text class="field" x="205" y="316" text-anchor="middle">Attributes: [product attributes]</text>
+          <rect class="dim" x="790" y="230" width="370" height="112"/><text class="label" x="975" y="260" text-anchor="middle">DIMENSION · [Customer / other]</text><text class="field" x="975" y="288" text-anchor="middle">PK: [dimension_key]</text><text class="field" x="975" y="316" text-anchor="middle">Attributes: [descriptive attributes]</text>
+          <rect class="dim" x="385" y="458" width="410" height="112"/><text class="label" x="590" y="488" text-anchor="middle">DIMENSION · [Channel / other]</text><text class="field" x="590" y="516" text-anchor="middle">PK: [dimension_key]</text><text class="field" x="590" y="544" text-anchor="middle">Attributes: [descriptive attributes]</text>
+          <rect class="fact" x="410" y="220" width="360" height="130"/><text class="label" x="590" y="252" text-anchor="middle">FACT · [Fact name]</text><text class="field" x="590" y="282" text-anchor="middle">Grain: [one row represents …]</text><text class="field" x="590" y="310" text-anchor="middle">FKs: [date_key, product_key, …]</text><text class="field" x="590" y="336" text-anchor="middle">Measures: [additive / semi-additive …]</text>
+          <path class="rel" d="M590 132V220"/><path class="rel" d="M390 286H410"/><path class="rel" d="M790 286H770"/><path class="rel" d="M590 458V350"/>
+          <text class="field" x="602" y="186">1 → many</text><text class="field" x="386" y="276" text-anchor="end">1 → many</text><text class="field" x="794" y="276">1 → many</text><text class="field" x="602" y="422">1 → many</text>
+        </svg>
+      </div>
+    </section>
+    <section class="panel"><p class="kicker">Model note</p><h2>Grain, keys, measures</h2><p><strong>Fact grain:</strong> [one row per business event/state/period at the stated detail].</p><p><strong>Dimension keys:</strong> each dimension uses one unique single-column PK; its matching fact FK creates a dimension-to-fact 1:N relationship.</p><p><strong>Measures:</strong> [name and aggregation behavior]. <strong>History:</strong> [only include SCD2/historical surrogate keys when needed].</p><p class="note"><strong>Assumptions and unknowns:</strong> [mark unverified fields as proposed; record role-playing dates, conformed dimensions, or bridges only when required].</p></section>
+    <div class="facts"><article><strong>Requirement / owner</strong>[requirement IDs and design owner]</article><article><strong>Acceptance evidence</strong>[how grain, keys, relationships, and measures will be confirmed]</article></div>
+  </main>
+</body>
+</html>

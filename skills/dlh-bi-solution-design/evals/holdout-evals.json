@@ -1,0 +1,41 @@
+{
+  "skill_name": "dlh-bi-solution-design",
+  "benchmark_context": "The user is designing a BI data solution. Use only authorized requirements and evidence; distinguish proposed designs from approved scope.",
+  "evals": [
+    {
+      "id": "design-holdout-001",
+      "prompt": "Draft the architecture page for a BI project. I need the major data handoffs, who owns them, what needs agreement, and what we can test first.",
+      "expected_output": "A concise design identifies flows, owners, contracts, unresolved agreements, and a useful first test slice.",
+      "expectations": [
+        "Maps major handoffs to owner and consumer.",
+        "Names unresolved contract/acceptance decisions and a first test slice.",
+        "Does not invent project details absent from the request."
+      ],
+      "files": [],
+      "tags": ["holdout", "high-level-design"]
+    },
+    {
+      "id": "design-holdout-002",
+      "prompt": "Could you sketch a small sales star only? Each row should represent one sale line. We have a date key and product key; use placeholders for columns we have not confirmed.",
+      "expected_output": "A small star preserves the sale-line grain, depicts the dimensions and fact keys with 1:N relations, and labels unconfirmed columns as proposed.",
+      "expectations": [
+        "Returns only one small star and concise supporting note.",
+        "Preserves one sale line as the grain and shows both dimension and fact keys.",
+        "Labels unconfirmed columns as proposed rather than observed."
+      ],
+      "files": [],
+      "tags": ["holdout", "star-schema"]
+    },
+    {
+      "id": "design-holdout-003",
+      "prompt": "These notes list daily and monthly snapshots, but don't say whether the report needs both. Can you finish the model anyway?",
+      "expected_output": "The skill identifies the history/grain decision and marks alternatives or asks a focused question instead of inventing a snapshot policy.",
+      "expectations": [
+        "Identifies unresolved snapshot grain/history as a design decision.",
+        "Does not commit to an unsupported daily/monthly snapshot design."
+      ],
+      "files": [],
+      "tags": ["holdout", "ambiguity"]
+    }
+  ]
+}

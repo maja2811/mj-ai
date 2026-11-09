@@ -1,0 +1,80 @@
+{
+  "skill_name": "dlh-bi-solution-design",
+  "benchmark_context": "The user is designing a BI data solution. Use only authorized requirements and evidence; distinguish proposed designs from approved scope.",
+  "evals": [
+    {
+      "id": "design-001",
+      "prompt": "We need a high-level BI design for a new source. Use the requirements in my prompt and give me a short architecture view for the PM and architect.",
+      "expected_output": "A concise overview identifies purpose/scope, source-to-consumer flows, boundaries and owners, contracts/dependencies, open decisions, and a first reviewable slice. Unknowns remain explicit.",
+      "expectations": [
+        "Separates confirmed scope from proposed design, unknowns, and exclusions.",
+        "Shows source-to-consumer flows, ownership, contracts, and dependencies.",
+        "Identifies material decisions and evidence needed without inventing owners or facts.",
+        "Names a first reviewable vertical slice or acceptance point."
+      ],
+      "files": [],
+      "tags": ["high-level-design"]
+    },
+    {
+      "id": "design-002",
+      "prompt": "Observed fields in the sales feed are event_id, order_id, line_number, event_timestamp, item_id, quantity, and net_amount. The approved grain is one row per order-line event. The business asks to filter by date and product, but dimension keys and additional attributes are not confirmed. Return only the focused star and a short grain/key/measure note.",
+      "expected_output": "One focused star shows the stated grain, a central fact, relevant dimensions, single-column dimension keys, matching fact foreign keys, dimension-to-fact 1:N relationships, and measures. Unverified columns are labeled proposed.",
+      "expectations": [
+        "Returns a focused star and short grain/key/measure note rather than a full deck or project interview.",
+        "Uses the user's stated order-line-event grain and does not silently change it.",
+        "Shows a dimension PK, its matching fact FK, and dimension-to-fact 1:N relationships.",
+        "Labels unverified fields as proposed and lists relevant measures only."
+      ],
+      "files": [],
+      "tags": ["star-schema", "focused-request"]
+    },
+    {
+      "id": "design-003",
+      "prompt": "Build a fact/dimension model from these notes. The notes mention both invoice and invoice-line reporting but don't say which is one row in the fact.",
+      "expected_output": "The response flags the grain ambiguity and asks a targeted clarification or presents the alternative grains explicitly. It does not invent one fact grain or blend incompatible measures.",
+      "expectations": [
+        "Calls out the unresolved invoice versus invoice-line grain before presenting a committed fact model.",
+        "Asks only the material grain/measure clarification or shows clearly separated alternatives.",
+        "Does not combine measures at incompatible grains or claim an unsupported schema."
+      ],
+      "files": [],
+      "tags": ["star-schema", "ambiguity"]
+    },
+    {
+      "id": "design-004",
+      "prompt": "Combine this architecture overview and the supplied star model into one design pack; keep the existing data-owner boundaries and show what is still a decision.",
+      "expected_output": "A combined design links the overview and star through requirement IDs, owners, outputs and decisions without turning the two views into an enterprise ERD.",
+      "expectations": [
+        "Provides an overview and the requested star/model detail in one coherent handoff.",
+        "Preserves supplied owners and marks unresolved decisions rather than assigning them.",
+        "Keeps requirement scope, implementation state, readiness, and estimate confidence distinct."
+      ],
+      "files": [],
+      "tags": ["combined-design"]
+    },
+    {
+      "id": "design-005",
+      "prompt": "Make a one-page fact/dimension diagram for the provided data. Do not estimate it or make a presentation.",
+      "expected_output": "Only a focused star diagram and brief grain/key/measure note are returned; no deck, broad interview, or estimate is added.",
+      "expectations": [
+        "Honors the diagram-only depth and format request.",
+        "Does not add hours, scenarios, or an unrelated full presentation."
+      ],
+      "files": [],
+      "tags": ["focused-request", "routing"]
+    },
+    {
+      "id": "design-006",
+      "prompt": "PM decision: phase the updated activity report for Area North, where feed mapping and parity checks have passed, or wait for a full replacement covering Area South, where mapping approval is still open. The current report remains available as fallback; the Operations owner controls the fallback. The PM owns the scope decision. We have no agreed budget, delivery date, or capacity data. Write a concise decision brief only, with recommendation, delivered/deferred scope, conditions, owners, fallback, and next step. Do not draw a diagram or estimate effort.",
+      "expected_output": "A concise PM note recommends a phased North release only on its supplied passing evidence, defers South until mapping approval and acceptance, assigns the decision/gate/fallback owners, and states the missing budget/date/capacity facts without inventing values. It contains no diagram or estimate.",
+      "expectations": [
+        "Returns a concise PM decision brief, not a diagram or effort estimate.",
+        "Separates Area North delivered scope from Area South deferred scope and names the mapping approval/acceptance condition.",
+        "Identifies the PM decision owner, Operations fallback owner, fallback action, and next step.",
+        "Does not invent a budget, delivery date, capacity, or unprovided acceptance result."
+      ],
+      "files": [],
+      "tags": ["pm-decision", "phased-scope"]
+    }
+  ]
+}
