@@ -25,6 +25,27 @@ covers what the platform requires.
 - For data quality, prefer DQX-backed `dlh_dmt_helper.data_quality.dq_check()` and DQX
   YAML files. Do not introduce legacy `check()` / `NamedDataFrame` patterns unless
   maintaining existing code that has not migrated yet.
+- When migrating existing checks, preserve their coverage, input scope, thresholds,
+  null handling, and failure behavior. Do not add new DQ rules or unrelated rewrites
+  unless asked. Reuse existing rule agreements; ask only about unresolved mappings.
+- Keep project READMEs focused on the project/repo overview. Put detailed migration,
+  testing, and deployment notes in the handoff plan or PR instead.
+
+## Metadata migrations
+
+- Inspect both object and column tag lists when upgrading legacy `metadata.yml`.
+  Older files may contain column-level `classification`; current CI supports it
+  only at table/view level. Remove unsupported column entries while preserving
+  column comments and the approved table classification/domain. If the table's
+  classification is missing, ask for it rather than guessing or downgrading it.
+- `MetaData.model_validate()` checks structure, not the full CI tag-placement
+  policy. Check the pinned helper's tag definitions and the shared CI validator;
+  a model-valid file can still fail CI. Do not invent replacement PI/sensitivity tags.
+- Use a domain from the pinned helper's `VALID_DOMAINS`, not a solution-owner
+  department label. YAML stores the domain as a tag key with an empty value,
+  for example `- Customer: ''`.
+- A static legacy-tag cleanup needs no LLM regeneration or data sampling. Validate
+  the metadata and the relevant CI gate; do not add a test framework for tag-only edits.
 
 ## Querying Databricks
 
